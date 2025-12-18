@@ -1,0 +1,11 @@
+{
+  "name": "Proyecto-GestionCongregacion",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"yarn --cwd backend dev\" \"yarn --cwd frontend dev\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
