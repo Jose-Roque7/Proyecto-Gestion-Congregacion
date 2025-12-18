@@ -387,7 +387,7 @@ export default function Navbar() {
             : 'bg-white'
         }`}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 select-none ">
           <div className="flex items-center justify-between h-16">
             
             {/* Logo y Nombre */}
@@ -404,7 +404,7 @@ export default function Navbar() {
               </motion.button>
               
               {/* Logo */}
-              <Link href="/dashboard" className="flex items-center space-x-3 no-underline">
+              <Link href="/dashboard" className="flex pointer-events-none items-center space-x-3 no-underline">
                 <motion.div
                   whileHover={{ scale: 1.05 }}
                   className="w-10 h-10 rounded-lg flex items-center justify-center shadow-sm overflow-hidden"

@@ -265,15 +265,13 @@ export default function Dashboard() {
     return showLoader ? baseDelay : baseDelay * 0.3; // Más rápido si no vino con loader
   };
 
-  // Cuando todo esté cargado, mostrar la página completa
-  console.log('📊 Dashboard Page - Rendering FULL DASHBOARD');
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+    <div className="min-h-screen select-none bg-gradient-to-b from-blue-50 to-white">
       {/* Contenido principal */}
       <div className="max-w-7xl mx-auto px-4 pt-6 pb-12">
 
         {/* Hero Centrado con Imagen Oscurecida */}
-        <div className="relative hidden md:block rounded-b-2xl w-full min-h-[70vh] md:min-h-[80vh] overflow-hidden mb-6 md:mb-8 pt-40 md:pt-15">
+        <div className="relative select-none pointer-events-none hidden md:block rounded-b-2xl w-full min-h-[70vh] md:min-h-[80vh] overflow-hidden mb-6 md:mb-8 pt-40 md:pt-15">
 
           {/* Imagen oscurecida */}
           <div className="absolute inset-0">

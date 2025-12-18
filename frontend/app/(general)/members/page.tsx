@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Navbar from '../../components/navbar'
+import ModalNuevoUsuario from '@/app/components/modals/nuevoMiembro'
 
 // Definición de tipos
 enum UserGene {
@@ -115,7 +116,6 @@ export default function Members() {
   const [searchTerm, setSearchTerm] = useState('')
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive' | 'bautizado' | 'no_bautizado' | 'hombres' | 'mujeres'>('all')
   const { isMobile, screenWidth } = useScreenSize(1025);
-
   // Form states
   const [formData, setFormData] = useState<Omit<Member, 'id'>>({
     nombres: '',
@@ -440,6 +440,11 @@ export default function Members() {
 
   return (
     <>
+      <ModalNuevoUsuario
+        open={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSubmit={handleCreate}
+      />
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
         {/* Header Compacto y Elegante - FIXED */}
         {!isMobile ? (

@@ -67,11 +67,11 @@ const Login = () => {
         <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-gradient-to-br from-indigo-100/30 to-blue-100/20 rounded-full blur-3xl"></div>
         
         {/* Patrones sutiles */}
-        <div className="absolute hidden md:block top-10 right-10 text-gray-500 text-6xl">
-          ♛
+        <div className="absolute hidden md:block w-15 h-15 top-10 right-10 text-gray-500 text-6xl">
+          <img src="icon.png"/>
         </div>
-        <div className="absolute hidden md:block bottom-10 left-10 text-gray-500 text-6xl">
-          ♛
+        <div className="absolute hidden md:block w-15 h-15 bottom-10 left-10 text-gray-500 text-6xl">
+          <img src="icon.png"/>
         </div>
         
         {/* Rayos de luz */}
@@ -90,15 +90,10 @@ const Login = () => {
           <motion.div
             initial={{ y: -20 }}
             animate={{ y: 0 }}
-            className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl mb-3 shadow-md"
+            className="inline-flex select-none pointer-events-none items-center justify-center w-45 h-45  mb-3 "
           >
-            <FaChurch className="text-white text-xl" />
+            <img src="logo.png" className='select-none pointer-events-none' />
           </motion.div>
-          
-          <h1 className="text-2xl font-bold text-gray-800 mb-1">
-            Iglesia Digital
-          </h1>
-          <p className="text-sm text-blue-600 font-medium">Sistema de Gestión espiritual</p>
         </div>
 
         {/* Formulario compacto */}
