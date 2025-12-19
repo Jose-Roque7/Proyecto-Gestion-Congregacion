@@ -5,6 +5,7 @@ import { FaEye, FaEyeSlash, FaEnvelope, FaLock, FaChurch} from 'react-icons/fa';
 import {login} from '../lib/crud';
 import { useRouter } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
+import { connectToServer } from '../lib/socket-client';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -13,6 +14,10 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const [showLoader, setShowLoader] = useState(true);
+
+   useEffect(() => {
+    connectToServer();
+  }, []);
 
    useEffect(() => {
     const timer = setTimeout(() => {
@@ -50,8 +55,6 @@ const Login = () => {
         
        }
   };
-
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-sky-400 via-gray-300 to-white p-4 relative overflow-hidden">
       <Toaster
@@ -179,5 +182,4 @@ const Login = () => {
     </div>
   );
 };
-
 export default Login;

@@ -6,13 +6,24 @@ import {
   Calendar, 
   Briefcase, 
   Image as ImageIcon, 
-  MapPin, 
   IdCard, 
   Save, 
   Droplets,
   Home,
   Check
 } from "lucide-react";
+
+// Definición de tipos
+enum UserGene {
+  MASCULINO = 'MASCULINO',
+  FEMENINO = 'FEMENINO',
+}
+
+enum BautismoEstado {
+  BAUTIZADO = 'BAUTIZADO',
+  NO_BAUTIZADO = 'NO_BAUTIZADO',
+  EN_DISCIPULADO = 'EN_DISCIPULADO',
+}
 
 interface NuevoMiembro {
   open: boolean;
@@ -25,18 +36,18 @@ interface FormData {
   apellidos: string;
   cedula?: string;
   img?: string;
-  genero: string;
+  genero: UserGene;
   puesto?: string;
   fecha_ingreso?: string;
   fecha_nacimiento: string;
   direccion?: string;
   telefono: string;
   estado?: boolean;
-  bautizado?: boolean;
+  bautismoEstado: BautismoEstado;
   fecha_bautismo?: string;
 }
 
-export default function ModalNuevoUsuario({
+export default function ModalNuevoMiembro({
   open,
   onClose,
   onSubmit,
@@ -46,14 +57,14 @@ export default function ModalNuevoUsuario({
     apellidos: "",
     cedula: "",
     img: "",
-    genero: "MASCULINO",
+    genero: UserGene.MASCULINO,
     puesto: "",
     fecha_ingreso: "",
     fecha_nacimiento: "",
     direccion: "",
     telefono: "",
     estado: true,
-    bautizado: false,
+    bautismoEstado: BautismoEstado.NO_BAUTIZADO,
     fecha_bautismo: "",
   };
 
@@ -79,15 +90,15 @@ export default function ModalNuevoUsuario({
     }
   }, [open]);
 
-  // Efecto para mostrar/ocultar fecha de bautismo según el checkbox
+  // Efecto para mostrar/ocultar fecha de bautismo según el estado de bautismo
   useEffect(() => {
-    if (form.bautizado) {
+    if (form.bautismoEstado === BautismoEstado.BAUTIZADO) {
       setShowFechaBautismo(true);
     } else {
       setShowFechaBautismo(false);
       setForm(prev => ({ ...prev, fecha_bautismo: "" }));
     }
-  }, [form.bautizado]);
+  }, [form.bautismoEstado]);
 
   // Función para formatear cédula en display
   const formatCedulaDisplay = (value: string): string => {
@@ -193,7 +204,7 @@ export default function ModalNuevoUsuario({
     if (!form.genero) newErrors.genero = "Requerido";
 
     // Validar fecha de bautismo si está marcado como bautizado
-    if (form.bautizado && !form.fecha_bautismo) {
+    if (form.bautismoEstado === BautismoEstado.BAUTIZADO && !form.fecha_bautismo) {
       newErrors.fecha_bautismo = "Requerida si está bautizado";
     }
 
@@ -338,8 +349,8 @@ export default function ModalNuevoUsuario({
                     onChange={handleChange}
                     className={`w-full border ${errors.genero ? 'border-red-300' : 'border-gray-200'} focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg pl-10 pr-8 py-3 text-gray-900 transition-all duration-200 appearance-none bg-white cursor-pointer text-sm sm:text-base`}
                   >
-                    <option value="MASCULINO">Masculino</option>
-                    <option value="FEMENINO">Femenino</option>
+                    <option value={UserGene.MASCULINO}>Masculino</option>
+                    <option value={UserGene.FEMENINO}>Femenino</option>
                   </select>
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -459,28 +470,29 @@ export default function ModalNuevoUsuario({
                 )}
               </div>
 
-              {/* Bautizado */}
+              {/* Estado de Bautismo */}
               <div className="space-y-1.5 sm:space-y-2">
                 <label className="block text-sm font-medium text-gray-700">
-                  Bautizado
+                  Estado de Bautismo
                 </label>
-                <div className="flex items-center h-full">
-                  <button
-                    type="button"
-                    onClick={() => setForm(prev => ({ ...prev, bautizado: !prev.bautizado }))}
-                    className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors"
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    <Droplets className="w-4 h-4" />
+                  </div>
+                  <select
+                    name="bautismoEstado"
+                    value={form.bautismoEstado}
+                    onChange={handleChange}
+                    className="w-full border border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg pl-10 pr-8 py-3 text-gray-900 transition-all duration-200 appearance-none bg-white cursor-pointer text-sm sm:text-base"
                   >
-                    <div className={`relative w-10 h-5 rounded-full transition-colors ${form.bautizado ? 'bg-blue-500' : 'bg-gray-300'}`}>
-                      <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transform transition-transform ${form.bautizado ? 'translate-x-6' : 'translate-x-1'}`} />
-                    </div>
-                    <span className={`text-sm font-medium ${form.bautizado ? 'text-blue-700' : 'text-gray-500'}`}>
-                      {form.bautizado ? 'Sí' : 'No'}
-                    </span>
-                  </button>
+                    <option value={BautismoEstado.NO_BAUTIZADO}>No bautizado</option>
+                    <option value={BautismoEstado.EN_DISCIPULADO}>En discipulado</option>
+                    <option value={BautismoEstado.BAUTIZADO}>Bautizado</option>
+                  </select>
                 </div>
               </div>
 
-              {/* Fecha Bautismo (Condicional) */}
+              {/* Fecha Bautismo (Condicional - solo si está bautizado) */}
               {showFechaBautismo && (
                 <div className="space-y-1.5 sm:space-y-2 sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700">
@@ -594,7 +606,7 @@ export default function ModalNuevoUsuario({
             </div>
 
             {/* Botones responsivos */}
-            <div className="flex flex-col m-10 sm:flex-row gap-3 pt-6 mt-6 border-t border-gray-100">
+            <div className="flex flex-col sm:flex-row gap-3 pt-6 mb-6 mt-6 border-t border-gray-100">
               <button
                 type="button"
                 onClick={handleClose}

@@ -19,11 +19,29 @@ import {
   Check
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import Cookies from "js-cookie";
+import { jwtDecode } from 'jwt-decode'
+
+interface CustomJwtPayload {
+  userId: string;
+  name: string;
+  rol: string;
+  nameChurch?: string;
+  logoChurch?: string;
+  [key: string]: any;
+}
 
 // Definición de tipos
 enum UserGene {
   MASCULINO = 'MASCULINO',
   FEMENINO = 'FEMENINO',
+}
+
+// Nuevo enum para el estado de bautismo
+enum BautismoEstado {
+  BAUTIZADO = 'BAUTIZADO',
+  NO_BAUTIZADO = 'NO_BAUTIZADO',
+  EN_DISCIPULADO = 'EN_DISCIPULADO',
 }
 
 interface Member {
@@ -40,9 +58,27 @@ interface Member {
   direccion?: string
   telefono: string
   estado?: boolean
-  bautizado?: boolean
+  bautismoEstado: BautismoEstado
   fecha_bautismo?: string
 }
+
+// Función para verificar permisos según el rol
+const hasPermission = (userData: CustomJwtPayload | null, requiredRoles: string[]): boolean => {
+  if (!userData || !userData.rol) return false;
+  return requiredRoles.includes(userData.rol);
+};
+
+// Función para obtener permisos específicos
+const getPermissions = (userData: CustomJwtPayload | null) => {
+  return {
+    canView: hasPermission(userData, ['ROOT', 'SUPER_ADMIN', 'ADMIN', 'USER']),
+    canCreate: hasPermission(userData, ['ROOT', 'SUPER_ADMIN', 'ADMIN', 'USER']),
+    canEdit: hasPermission(userData, ['ROOT', 'SUPER_ADMIN', 'ADMIN']),
+    canDelete: hasPermission(userData, ['ROOT', 'SUPER_ADMIN']),
+    canViewAdvancedStats: hasPermission(userData, ['ROOT', 'SUPER_ADMIN', 'ADMIN']),
+    canViewInactive: hasPermission(userData, ['ROOT', 'SUPER_ADMIN', 'ADMIN']),
+  };
+};
 
 // Función para calcular edad
 const calcularEdad = (fechaNacimiento: string): number => {
@@ -116,7 +152,7 @@ const useScreenSize = (mobileBreakpoint: number = 1025) => {
   return { isMobile, screenWidth };
 };
 
-// Componente Modal de Editar
+// Componente Modal de Editar - MODIFICA ESTE CÓDIGO
 const ModalEditarMiembro = ({ 
   open, 
   onClose, 
@@ -135,37 +171,49 @@ const ModalEditarMiembro = ({
   const [telefonoDisplay, setTelefonoDisplay] = useState("");
   const [showFechaBautismo, setShowFechaBautismo] = useState(false);
 
+  // Inicializar el formulario cuando member cambia
   useEffect(() => {
     if (member) {
       setForm(member);
       setCedulaDisplay(formatCedula(member.cedula).replace('No especificada', ''));
       setTelefonoDisplay(formatTelefono(member.telefono));
-      setShowFechaBautismo(member.bautizado || false);
+      setShowFechaBautismo(member.bautismoEstado === BautismoEstado.BAUTIZADO);
+      setErrors({});
+      setIsSubmitting(false);
     }
   }, [member]);
 
+  // Limpiar formulario cuando el modal se cierra - SIMPLIFICADO
   useEffect(() => {
-    if (!open) {
-      setTimeout(() => {
-        setForm(null);
-        setCedulaDisplay("");
-        setTelefonoDisplay("");
-        setErrors({});
-        setIsSubmitting(false);
-        setShowFechaBautismo(false);
-      }, 300);
-    }
-  }, [open]);
+  if (open && member) {
+    setForm(member);
+    setCedulaDisplay(formatCedula(member.cedula).replace('No especificada', ''));
+    setTelefonoDisplay(formatTelefono(member.telefono));
+    setShowFechaBautismo(member.bautismoEstado === BautismoEstado.BAUTIZADO);
+  }
+  
+  if (!open) {
+    // Limpiar inmediatamente sin setTimeout
+    setForm(null);
+    setCedulaDisplay("");
+    setTelefonoDisplay("");
+    setErrors({});
+    setIsSubmitting(false);
+    setShowFechaBautismo(false);
+  }
+}, [open, member]);
 
+  // Mostrar/ocultar fecha de bautismo según el estado
   useEffect(() => {
-    if (form?.bautizado) {
+    if (form?.bautismoEstado === BautismoEstado.BAUTIZADO) {
       setShowFechaBautismo(true);
     } else {
       setShowFechaBautismo(false);
       setForm(prev => prev ? { ...prev, fecha_bautismo: "" } : null);
     }
-  }, [form?.bautizado]);
+  }, [form?.bautismoEstado]);
 
+  // Resto del código permanece igual...
   const formatCedulaDisplay = (value: string): string => {
     const numbers = value.replace(/\D/g, '');
     if (numbers.length <= 3) {
@@ -245,7 +293,7 @@ const ModalEditarMiembro = ({
 
     if (!form.genero) newErrors.genero = "Requerido";
 
-    if (form.bautizado && !form.fecha_bautismo) {
+    if (form.bautismoEstado === BautismoEstado.BAUTIZADO && !form.fecha_bautismo) {
       newErrors.fecha_bautismo = "Requerida si está bautizado";
     }
 
@@ -276,6 +324,7 @@ const ModalEditarMiembro = ({
     onClose();
   };
 
+  // Condición de renderizado simplificada - igual que en ModalEliminarMiembro
   if (!open || !form) return null;
 
   const today = new Date().toISOString().split('T')[0];
@@ -320,6 +369,7 @@ const ModalEditarMiembro = ({
           <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
               
+              {/* Resto del formulario permanece igual... */}
               <div className="space-y-1.5 sm:space-y-2">
                 <label className="block text-sm font-medium text-gray-700">
                   Nombres <span className="text-red-500">*</span>
@@ -480,21 +530,22 @@ const ModalEditarMiembro = ({
 
               <div className="space-y-1.5 sm:space-y-2">
                 <label className="block text-sm font-medium text-gray-700">
-                  Bautizado
+                  Estado de Bautismo
                 </label>
-                <div className="flex items-center h-full">
-                  <button
-                    type="button"
-                    onClick={() => setForm(prev => prev ? { ...prev, bautizado: !prev.bautizado } : null)}
-                    className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors"
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    <Droplets className="w-4 h-4" />
+                  </div>
+                  <select
+                    name="bautismoEstado"
+                    value={form.bautismoEstado || BautismoEstado.NO_BAUTIZADO}
+                    onChange={handleChange}
+                    className="w-full border border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-lg pl-10 pr-8 py-3 text-gray-900 transition-all duration-200 appearance-none bg-white cursor-pointer text-sm sm:text-base"
                   >
-                    <div className={`relative w-10 h-5 rounded-full transition-colors ${form.bautizado ? 'bg-blue-500' : 'bg-gray-300'}`}>
-                      <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transform transition-transform ${form.bautizado ? 'translate-x-6' : 'translate-x-1'}`} />
-                    </div>
-                    <span className={`text-sm font-medium ${form.bautizado ? 'text-blue-700' : 'text-gray-500'}`}>
-                      {form.bautizado ? 'Sí' : 'No'}
-                    </span>
-                  </button>
+                    <option value={BautismoEstado.NO_BAUTIZADO}>No bautizado</option>
+                    <option value={BautismoEstado.EN_DISCIPULADO}>En discipulado</option>
+                    <option value={BautismoEstado.BAUTIZADO}>Bautizado</option>
+                  </select>
                 </div>
               </div>
 
@@ -658,6 +709,7 @@ const ModalEliminarMiembro = ({
   onConfirm: () => void 
 }) => {
   const [isDeleting, setIsDeleting] = useState(false);
+  const { isMobile } = useScreenSize(768);
 
   const handleClose = () => {
     onClose();
@@ -690,20 +742,22 @@ const ModalEliminarMiembro = ({
           className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto transform transition-all duration-300 border border-gray-200 overflow-hidden"
           onClick={e => e.stopPropagation()}
         >
+          {/* Header optimizado para móvil */}
           <div className="sticky top-0 z-10 bg-white border-b border-gray-100">
-            <div className="flex items-center justify-between p-5 sm:p-6">
+            <div className={`flex items-center justify-between ${isMobile ? 'p-4' : 'p-5 sm:p-6'}`}>
               <div className="flex items-center gap-3">
-                <div className="bg-red-50 p-2.5 rounded-lg">
-                  <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-red-600" />
+                <div className="bg-red-50 p-2 rounded-lg">
+                  <AlertTriangle className={`${isMobile ? 'w-5 h-5' : 'w-5 h-5 sm:w-6 sm:h-6'} text-red-600`} />
                 </div>
                 <div>
-                  <h2 className="text-lg sm:text-xl font-bold text-gray-900">Eliminar Miembro</h2>
-                  <p className="text-gray-500 text-sm sm:text-base font-medium">Confirmar eliminación</p>
+                  <h2 className={`${isMobile ? 'text-lg' : 'text-lg sm:text-xl'} font-bold text-gray-900`}>
+                    Eliminar Miembro
+                  </h2>
                 </div>
               </div>
               <button
                 onClick={handleClose}
-                className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-all duration-200"
+                className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1.5 sm:p-2 rounded-lg transition-all duration-200"
                 aria-label="Cerrar"
               >
                 <X className="w-5 h-5" />
@@ -711,42 +765,40 @@ const ModalEliminarMiembro = ({
             </div>
           </div>
 
-          <div className="p-4 sm:p-6">
-            <div className="text-center mb-6">
-              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
-                <Trash2 className="h-8 w-8 text-red-600" />
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">¿Está seguro de eliminar este miembro?</h3>
-              <p className="text-gray-600 mb-4">
+          <div className={isMobile ? 'p-4' : 'p-4 sm:p-6'}>
+            {/* Contenido principal optimizado para móvil */}
+            <div className="text-center mb-4 sm:mb-6"> 
+              <h3 className={`font-bold text-gray-900 mb-2 ${isMobile ? 'text-lg' : 'text-lg'}`}>
+                ¿Está seguro de eliminar este miembro?
+              </h3>
+              
+              <p className={`text-gray-600 mb-4 ${isMobile ? 'text-sm' : ''}`}>
                 Esta acción no se puede deshacer. El miembro será eliminado permanentemente.
               </p>
               
-              <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                <div className="flex items-center justify-center gap-3 mb-3">
-                  <div className="h-12 w-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+              {/* Información del miembro - Optimizada para móvil */}
+              <div className="bg-gray-50 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
+                {/* Avatar y nombre en columna para móvil, fila para desktop */}
+                <div className={`flex ${isMobile ? 'flex-col items-center text-center' : 'items-center justify-center gap-3'} mb-3`}>
+                  <div className={`${isMobile ? 'mb-2' : ''} bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center ${isMobile ? 'h-12 w-12' : 'h-12 w-12'}`}>
                     <span className="text-white font-bold text-lg">
                       {member.nombres.charAt(0)}{member.apellidos.charAt(0)}
                     </span>
                   </div>
-                  <div className="text-left">
+                  <div className={isMobile ? '' : 'text-left'}>
                     <h4 className="font-bold text-gray-900">{member.nombres} {member.apellidos}</h4>
                     <p className="text-sm text-gray-600">{member.puesto || 'Miembro'}</p>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className="text-gray-800">Teléfono:</div>
-                  <div className="font-medium text-gray-600">{formatTelefono(member.telefono)}</div>
-                  <div className="text-gray-800">Cédula:</div>
-                  <div className="font-medium text-gray-600">{formatCedula(member.cedula)}</div>
-                </div>
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3">
+            {/* Botones optimizados para móvil */}
+            <div className={`flex ${isMobile ? 'flex-col' : 'flex-col sm:flex-row'} gap-3`}>
               <button
                 type="button"
                 onClick={handleClose}
-                className="flex-1 px-4 py-3 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-all duration-200 border border-gray-200"
+                className={`px-4 py-3 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-all duration-200 border border-gray-200 ${isMobile ? 'w-full' : 'flex-1'}`}
                 disabled={isDeleting}
               >
                 Cancelar
@@ -755,7 +807,7 @@ const ModalEliminarMiembro = ({
                 type="button"
                 onClick={handleConfirm}
                 disabled={isDeleting}
-                className={`flex-1 px-4 py-3 text-sm font-medium text-white rounded-lg transition-all duration-200 flex items-center justify-center gap-2 ${isDeleting ? 'bg-red-600 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'}`}
+                className={`px-4 py-3 text-sm font-medium text-white rounded-lg transition-all duration-200 flex items-center justify-center gap-2 ${isDeleting ? 'bg-red-600 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'} ${isMobile ? 'w-full' : 'flex-1'}`}
               >
                 {isDeleting ? (
                   <>
@@ -773,6 +825,47 @@ const ModalEliminarMiembro = ({
           </div>
         </div>
       </div>
+
+      {/* Estilos responsivos adicionales */}
+      <style jsx global>{`
+        @media (max-width: 640px) {
+          /* Asegurar que el modal no sea demasiado alto en móviles */
+          .fixed.inset-0.z-101 > div {
+            max-height: 90vh;
+            overflow-y: auto;
+          }
+          
+          /* Scroll suave para el contenido del modal */
+          .fixed.inset-0.z-101 > div > div:nth-child(2) {
+            max-height: calc(90vh - 70px);
+            overflow-y: auto;
+          }
+        }
+        
+        /* Animación de entrada mejorada */
+        @keyframes slideUp {
+          0% {
+            opacity: 0;
+            transform: translateY(10px) scale(0.98);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+        
+        .fixed.inset-0.z-101 > div {
+          animation: slideUp 0.2s ease-out;
+        }
+        
+        /* Efecto de toque en botones móviles */
+        @media (hover: none) and (pointer: coarse) {
+          button:active {
+            transform: scale(0.98);
+            transition: transform 0.1s;
+          }
+        }
+      `}</style>
     </>
   );
 };
@@ -786,8 +879,12 @@ export default function Members() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [selectedMember, setSelectedMember] = useState<Member | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive' | 'bautizado' | 'no_bautizado' | 'hombres' | 'mujeres'>('all')
+  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive' | 'bautizado' | 'no_bautizado' | 'en_discipulado' | 'hombres' | 'mujeres'>('all')
   const { isMobile } = useScreenSize(1025);
+  const [userData, setUserData] = useState<CustomJwtPayload | null>(null);
+
+  // Obtener permisos basados en el rol del usuario
+  const permissions = getPermissions(userData);
 
   // Form states
   const [formData, setFormData] = useState<Omit<Member, 'id'>>({
@@ -803,12 +900,21 @@ export default function Members() {
     direccion: '',
     telefono: '',
     estado: true,
-    bautizado: false,
+    bautismoEstado: BautismoEstado.NO_BAUTIZADO,
     fecha_bautismo: ''
   })
 
   // Fetch miembros inicial
   useEffect(() => {
+    const token = Cookies.get('auth_token');
+    if (token) {
+      try {
+        const decoded = jwtDecode<CustomJwtPayload>(token);
+        setUserData(decoded);
+      } catch (error) {
+        console.error('Error decoding token:', error);
+      }
+    }
     fetchMembers()
   }, [])
 
@@ -828,7 +934,7 @@ export default function Members() {
           fecha_ingreso: '2020-01-15',
           direccion: 'Calle Principal #123, Santo Domingo Este',
           estado: true,
-          bautizado: true,
+          bautismoEstado: BautismoEstado.BAUTIZADO,
           fecha_bautismo: '2015-06-20'
         },
         {
@@ -843,7 +949,7 @@ export default function Members() {
           fecha_ingreso: '2019-03-10',
           direccion: 'Av. Independencia #456, Distrito Nacional',
           estado: true,
-          bautizado: true,
+          bautismoEstado: BautismoEstado.BAUTIZADO,
           fecha_bautismo: '2010-12-10'
         },
         {
@@ -858,7 +964,7 @@ export default function Members() {
           fecha_ingreso: '2018-06-20',
           direccion: 'Calle Las Flores #789, Santiago',
           estado: true,
-          bautizado: false
+          bautismoEstado: BautismoEstado.EN_DISCIPULADO
         },
         {
           id: '4',
@@ -872,8 +978,7 @@ export default function Members() {
           fecha_ingreso: '2021-09-05',
           direccion: 'Sector Los Ríos #321',
           estado: true,
-          bautizado: true,
-          fecha_bautismo: '2020-08-15'
+          bautismoEstado: BautismoEstado.NO_BAUTIZADO
         }
       ]
 
@@ -898,48 +1003,36 @@ export default function Members() {
       activeFilter === 'all' ||
       (activeFilter === 'active' && member.estado) ||
       (activeFilter === 'inactive' && !member.estado) ||
-      (activeFilter === 'bautizado' && member.bautizado) ||
-      (activeFilter === 'no_bautizado' && !member.bautizado) ||
+      (activeFilter === 'bautizado' && member.bautismoEstado === BautismoEstado.BAUTIZADO) ||
+      (activeFilter === 'no_bautizado' && member.bautismoEstado === BautismoEstado.NO_BAUTIZADO) ||
+      (activeFilter === 'en_discipulado' && member.bautismoEstado === BautismoEstado.EN_DISCIPULADO) ||
       (activeFilter === 'hombres' && member.genero === UserGene.MASCULINO) ||
       (activeFilter === 'mujeres' && member.genero === UserGene.FEMENINO)
 
     return matchesSearch && matchesFilter
   })
+  
+  // Y modifica la función handleCreate para usar formData:
+  const handleCreate = async (data: any) => {
+    try {
+      const newMember: Member = {
+        ...data,
+        id: String(members.length+1),
+        genero: data.genero as UserGene,
+        estado: data.estado ?? true,
+        bautismoEstado: data.bautismoEstado ?? BautismoEstado.NO_BAUTIZADO,
+      };
 
-
-  // En tu componente Members, agrega esta función para manejar el cambio en el formulario del modal:
-const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-  const { name, value, type } = e.target;
-
-  if (type === 'checkbox') {
-    const checked = (e.target as HTMLInputElement).checked;
-    setFormData(prev => ({ ...prev, [name]: checked }));
-  } else {
-    setFormData(prev => ({ ...prev, [name]: value }));
-  }
-};
-
-// Y modifica la función handleCreate para usar formData:
-const handleCreate = async (data: any) => {
-  try {
-    const newMember: Member = {
-      ...data,
-      id: String(members.length+1),
-      genero: data.genero as UserGene,
-      estado: data.estado ?? true,
-      bautizado: data.bautizado ?? false,
-    };
-
-    setMembers(prev => [...prev, newMember]);
-    setShowCreateModal(false);
-    resetForm();
-    
-    // Mostrar mensaje de éxito (opcional)
-    toast.success('Miembro creado exitosamente');
-  } catch (error) {
-    toast.error('Error al crear el miembro');
-  }
-};
+      setMembers(prev => [...prev, newMember]);
+      setShowCreateModal(false);
+      resetForm();
+      
+      // Mostrar mensaje de éxito (opcional)
+      toast.success('Miembro creado exitosamente');
+    } catch (error) {
+      toast.error('Error al crear el miembro');
+    }
+  };
 
   const handleEdit = (member: Member) => {
     setSelectedMember(member)
@@ -994,7 +1087,8 @@ const handleCreate = async (data: any) => {
       direccion: '',
       telefono: '',
       estado: true,
-      bautizado: false
+      bautismoEstado: BautismoEstado.NO_BAUTIZADO,
+      fecha_bautismo: ''
     })
   }
 
@@ -1026,8 +1120,9 @@ const handleCreate = async (data: any) => {
             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${member.estado ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
               {member.estado ? 'ACTIVO' : 'INACTIVO'}
             </span>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${member.bautizado ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>
-              {member.bautizado ? 'BAUTIZADO' : 'NO BAUTIZADO'}
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${member.bautismoEstado === BautismoEstado.BAUTIZADO ? 'bg-blue-100 text-blue-700' : member.bautismoEstado === BautismoEstado.EN_DISCIPULADO ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'}`}>
+              {member.bautismoEstado === BautismoEstado.BAUTIZADO ? 'BAUTIZADO' : 
+               member.bautismoEstado === BautismoEstado.EN_DISCIPULADO ? 'EN DISCIPULADO' : 'NO BAUTIZADO'}
             </span>
           </div>
         </div>
@@ -1064,7 +1159,7 @@ const handleCreate = async (data: any) => {
               <div className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide mb-0.5">INGRESO</div>
               <div className="text-xs text-gray-800">{formatFechaCorta(member.fecha_ingreso)}</div>
             </div>
-            {member.bautizado && member.fecha_bautismo && (
+            {member.bautismoEstado === BautismoEstado.BAUTIZADO && member.fecha_bautismo && (
               <div>
                 <div className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide mb-0.5">BAUTIZO</div>
                 <div className="text-xs text-gray-800">{formatFechaCorta(member.fecha_bautismo)}</div>
@@ -1081,20 +1176,27 @@ const handleCreate = async (data: any) => {
 
         {/* Acciones */}
         <div className="flex gap-2 pt-3 border-t border-gray-200">
-          <button
-            onClick={() => handleEdit(member)}
-            className="flex-1 bg-blue-600 text-white rounded-lg py-2 text-xs font-bold hover:bg-blue-700 transition-colors flex items-center justify-center gap-1"
-          >
-            <Edit className="w-3 h-3" />
-            Editar
-          </button>
-          <button
-            onClick={() => handleDelete(member)}
-            className="flex-1 bg-red-600 text-white rounded-lg py-2 text-xs font-bold hover:bg-red-700 transition-colors flex items-center justify-center gap-1"
-          >
-            <Trash2 className="w-3 h-3" />
-            Eliminar
-          </button>
+          {/* Botón Editar - solo para ROOT, SUPER_ADMIN, ADMIN */}
+          {permissions.canEdit && (
+            <button
+              onClick={() => handleEdit(member)}
+              className={`bg-blue-600 text-white rounded-lg py-2 text-xs font-bold hover:bg-blue-700 transition-colors flex items-center justify-center gap-1 ${permissions.canDelete ? 'flex-1' : 'w-full'}`}
+            >
+              <Edit className="w-3 h-3" />
+              Editar
+            </button>
+          )}
+          
+          {/* Botón Eliminar - solo para ROOT, SUPER_ADMIN */}
+          {permissions.canDelete && (
+            <button
+              onClick={() => handleDelete(member)}
+              className="flex-1 bg-red-600 text-white rounded-lg py-2 text-xs font-bold hover:bg-red-700 transition-colors flex items-center justify-center gap-1"
+            >
+              <Trash2 className="w-3 h-3" />
+              Eliminar
+            </button>
+          )}
         </div>
       </div>
     )
@@ -1127,18 +1229,51 @@ const handleCreate = async (data: any) => {
                         <span className="font-semibold">{members.length}</span> Total
                       </span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-red-500"></div>
-                      <span className="text-sm text-gray-700">
-                        <span className="font-semibold">{members.filter(m => m.estado === false).length}</span> Inactivos
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-orange-400"></div>
-                      <span className="text-sm text-gray-700">
-                        <span className="font-semibold">{members.filter(m => m.bautizado === false).length}</span> Sin Bautizar
-                      </span>
-                    </div>
+                    
+                    {/* Mostrar estadísticas avanzadas solo para ADMIN o superior */}
+                    {permissions.canViewAdvancedStats && (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full bg-red-500"></div>
+                          <span className="text-sm text-gray-700">
+                            <span className="font-semibold">{members.filter(m => m.estado === false).length}</span> Inactivos
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                          <span className="text-sm text-gray-700">
+                            <span className="font-semibold">{members.filter(m => m.bautismoEstado === BautismoEstado.BAUTIZADO).length}</span> Bautizados
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full bg-gray-500"></div>
+                          <span className="text-sm text-gray-700">
+                            <span className="font-semibold">{members.filter(m => m.bautismoEstado === BautismoEstado.NO_BAUTIZADO).length}</span> No bautizados
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full bg-purple-500"></div>
+                          <span className="text-sm text-gray-700">
+                            <span className="font-semibold">{members.filter(m => m.bautismoEstado === BautismoEstado.EN_DISCIPULADO).length}</span> En discipulado
+                          </span>
+                        </div>
+                      </>
+                    )}
+                    
+                    {/* Para USER mostrar solo info básica */}
+                    {!permissions.canViewAdvancedStats && (
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                        <span className="text-sm text-gray-700">
+                          <span className="font-semibold">{members.filter(m => m.bautismoEstado === BautismoEstado.BAUTIZADO).length}</span> Bautizados
+                        </span>
+                      </div>
+                    )}
+                    
+                    {/* Género siempre visible para todos */}
                     <div className="flex items-center gap-2">
                       <div className="h-2 w-2 rounded-full bg-pink-500"></div>
                       <span className="text-sm text-gray-700">
@@ -1194,9 +1329,13 @@ const handleCreate = async (data: any) => {
                       >
                         <option value="all">Todos los miembros</option>
                         <option value="active">Activos</option>
-                        <option value="inactive">Inactivos</option>
+                        {/* Solo mostrar opción de inactivos para ADMIN o superior */}
+                        {permissions.canViewInactive && (
+                          <option value="inactive">Inactivos</option>
+                        )}
                         <option value="bautizado">Bautizados</option>
                         <option value="no_bautizado">No bautizados</option>
+                        <option value="en_discipulado">En discipulado</option>
                         <option value="hombres">Hombres</option>
                         <option value="mujeres">Mujeres</option>
                       </select>
@@ -1207,17 +1346,19 @@ const handleCreate = async (data: any) => {
                       </div>
                     </div>
 
-                    {/* Botón Nuevo - Responsive */}
-                    <button
-                      onClick={() => setShowCreateModal(true)}
-                      className="inline-flex items-center justify-center px-3 sm:px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors whitespace-nowrap"
-                    >
-                      <svg className="h-4 w-4 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                      <span className="hidden sm:inline">Nuevo</span>
-                      <span className="sm:hidden">+</span>
-                    </button>
+                    {/* Botón Nuevo - Responsive - Mostrar solo si tiene permiso */}
+                    {permissions.canCreate && (
+                      <button
+                        onClick={() => setShowCreateModal(true)}
+                        className="inline-flex items-center justify-center px-3 sm:px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors whitespace-nowrap"
+                      >
+                        <svg className="h-4 w-4 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span className="hidden sm:inline">Nuevo</span>
+                        <span className="sm:hidden">+</span>
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -1236,6 +1377,7 @@ const handleCreate = async (data: any) => {
                         {activeFilter === 'inactive' && 'Inactivos'}
                         {activeFilter === 'bautizado' && 'Bautizados'}
                         {activeFilter === 'no_bautizado' && 'No bautizados'}
+                        {activeFilter === 'en_discipulado' && 'En discipulado'}
                         {activeFilter === 'hombres' && 'Hombres'}
                         {activeFilter === 'mujeres' && 'Mujeres'}
                       </span>
@@ -1286,18 +1428,51 @@ const handleCreate = async (data: any) => {
                         <span className="font-semibold">{members.length}</span> Total
                       </span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-red-500"></div>
-                      <span className="text-sm text-gray-700">
-                        <span className="font-semibold">{members.filter(m => m.estado === false).length}</span> Inactivos
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-orange-400"></div>
-                      <span className="text-sm text-gray-700">
-                        <span className="font-semibold">{members.filter(m => m.bautizado === false).length}</span> Sin Bautizar
-                      </span>
-                    </div>
+                    
+                    {/* Mostrar estadísticas avanzadas solo para ADMIN o superior */}
+                    {permissions.canViewAdvancedStats && (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full bg-red-500"></div>
+                          <span className="text-sm text-gray-700">
+                            <span className="font-semibold">{members.filter(m => m.estado === false).length}</span> Inactivos
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                          <span className="text-sm text-gray-700">
+                            <span className="font-semibold">{members.filter(m => m.bautismoEstado === BautismoEstado.BAUTIZADO).length}</span> Bautizados
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full bg-gray-500"></div>
+                          <span className="text-sm text-gray-700">
+                            <span className="font-semibold">{members.filter(m => m.bautismoEstado === BautismoEstado.NO_BAUTIZADO).length}</span> No bautizados
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full bg-purple-500"></div>
+                          <span className="text-sm text-gray-700">
+                            <span className="font-semibold">{members.filter(m => m.bautismoEstado === BautismoEstado.EN_DISCIPULADO).length}</span> En discipulado
+                          </span>
+                        </div>
+                      </>
+                    )}
+                    
+                    {/* Para USER mostrar solo info básica */}
+                    {!permissions.canViewAdvancedStats && (
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                        <span className="text-sm text-gray-700">
+                          <span className="font-semibold">{members.filter(m => m.bautismoEstado === BautismoEstado.BAUTIZADO).length}</span> Bautizados
+                        </span>
+                      </div>
+                    )}
+                    
+                    {/* Género siempre visible para todos */}
                     <div className="flex items-center gap-2">
                       <div className="h-2 w-2 rounded-full bg-pink-500"></div>
                       <span className="text-sm text-gray-700">
@@ -1353,9 +1528,13 @@ const handleCreate = async (data: any) => {
                       >
                         <option value="all">Todos los miembros</option>
                         <option value="active">Activos</option>
-                        <option value="inactive">Inactivos</option>
+                        {/* Solo mostrar opción de inactivos para ADMIN o superior */}
+                        {permissions.canViewInactive && (
+                          <option value="inactive">Inactivos</option>
+                        )}
                         <option value="bautizado">Bautizados</option>
                         <option value="no_bautizado">No bautizados</option>
+                        <option value="en_discipulado">En discipulado</option>
                         <option value="hombres">Hombres</option>
                         <option value="mujeres">Mujeres</option>
                       </select>
@@ -1366,16 +1545,18 @@ const handleCreate = async (data: any) => {
                       </div>
                     </div>
 
-                    {/* Botón Nuevo - Responsive */}
-                    <button
-                      onClick={() => setShowCreateModal(true)}
-                      className="inline-flex items-center justify-center px-3 sm:px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors whitespace-nowrap"
-                    >
-                      <svg className="h-4 w-4 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                      <span className="hidden sm:inline">Nuevo</span>
-                    </button>
+                    {/* Botón Nuevo - Responsive - Mostrar solo si tiene permiso */}
+                    {permissions.canCreate && (
+                      <button
+                        onClick={() => setShowCreateModal(true)}
+                        className="inline-flex items-center justify-center px-3 sm:px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors whitespace-nowrap"
+                      >
+                        <svg className="h-4 w-4 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span className="hidden sm:inline">Nuevo</span>
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -1394,6 +1575,7 @@ const handleCreate = async (data: any) => {
                         {activeFilter === 'inactive' && 'Inactivos'}
                         {activeFilter === 'bautizado' && 'Bautizados'}
                         {activeFilter === 'no_bautizado' && 'No bautizados'}
+                        {activeFilter === 'en_discipulado' && 'En discipulado'}
                         {activeFilter === 'hombres' && 'Hombres'}
                         {activeFilter === 'mujeres' && 'Mujeres'}
                       </span>
@@ -1444,7 +1626,7 @@ const handleCreate = async (data: any) => {
                 <p className="text-gray-600 text-xs mb-3">
                   {searchTerm ? 'Intenta con otros términos de búsqueda' : 'Agrega el primer miembro'}
                 </p>
-                {!searchTerm && (
+                {!searchTerm && permissions.canCreate && (
                   <button
                     onClick={() => setShowCreateModal(true)}
                     className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all"
@@ -1473,25 +1655,6 @@ const handleCreate = async (data: any) => {
           {/* Vista PC (Tabla Premium) */}
           <div className="hidden lg:block">
             <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-              {/* Header de tabla mejorado */}
-              {/* <div className="px-6 py-3 bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-bold text-gray-900">Lista de Miembros</h2>
-                    <p className="text-gray-600 text-sm mt-1">
-                      {filteredMembers.length} miembros encontrados
-                      {searchTerm && ` para "${searchTerm}"`}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-sm text-gray-700 bg-white px-4 py-2 rounded-lg border border-gray-200">
-                      <span className="font-semibold text-blue-600">{filteredMembers.length}</span> de{' '}
-                      <span className="font-semibold">{members.length}</span> miembros
-                    </div>
-                  </div>
-                </div>
-              </div> */}
-
               {isLoading ? (
                 <div className="p-16 text-center">
                   <div className="inline-block animate-spin rounded-full h-14 w-14 border-[3px] border-blue-500 border-t-transparent"></div>
@@ -1511,7 +1674,7 @@ const handleCreate = async (data: any) => {
                   <p className="text-gray-600 mb-8 max-w-md mx-auto text-lg">
                     {searchTerm ? 'Intenta con otros términos de búsqueda o modifica los filtros' : 'Comienza agregando tu primer miembro a la congregación'}
                   </p>
-                  {!searchTerm && (
+                  {!searchTerm && permissions.canCreate && (
                     <button
                       onClick={() => setShowCreateModal(true)}
                       className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-3.5 rounded-lg font-bold shadow-lg hover:shadow-xl transition-all duration-300 text-lg"
@@ -1532,7 +1695,7 @@ const handleCreate = async (data: any) => {
                           <div className="flex items-center justify-center text-center gap-2">
                             <span>Miembro</span>
                             <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h9m5-4v12m0 0l-4-4m4 4l4-4" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h9m5-4v12m0 0l-4-4m4 4l-4 4" />
                             </svg>
                           </div>
                         </th>
@@ -1669,7 +1832,7 @@ const handleCreate = async (data: any) => {
                                     </span>
                                   </div>
                                 </div>
-                                {member.bautizado && member.fecha_bautismo && (
+                                {member.bautismoEstado === BautismoEstado.BAUTIZADO && member.fecha_bautismo && (
                                   <div>
                                     <div className="text-[10px] text-center font-semibold text-gray-500 uppercase tracking-wide mb-1">BAUTIZO</div>
                                     <div className="flex items-center justify-center text-center gap-2 bg-gradient-to-r from-blue-50 to-indigo-50 px-3 py-1.5 rounded-md border border-blue-100">
@@ -1680,9 +1843,20 @@ const handleCreate = async (data: any) => {
                                     </div>
                                   </div>
                                 )}
-                                {!member.bautizado && (
+                                {member.bautismoEstado === BautismoEstado.EN_DISCIPULADO && (
                                   <div className="mt-4 text-center">
-                                    <div className="text-[10px] text-center font-semibold text-gray-500 uppercase tracking-wide mb-1">BAUTIZO</div>
+                                    <div className="text-[10px] text-center font-semibold text-gray-500 uppercase tracking-wide mb-1">ESTADO</div>
+                                    <span className="inline-flex items-center justify-center text-center gap-1 bg-purple-100 text-purple-700 px-2.5 py-1 rounded-full text-[10px] font-semibold">
+                                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                      </svg>
+                                      En discipulado
+                                    </span>
+                                  </div>
+                                )}
+                                {member.bautismoEstado === BautismoEstado.NO_BAUTIZADO && (
+                                  <div className="mt-4 text-center">
+                                    <div className="text-[10px] text-center font-semibold text-gray-500 uppercase tracking-wide mb-1">BAUTISMO</div>
                                     <span className="inline-flex items-center justify-center text-center gap-1 bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full text-[10px] font-semibold">
                                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.998-.833-2.732 0L4.882 16.5c-.77.833.192 2.5 1.732 2.5z" />
@@ -1716,16 +1890,21 @@ const handleCreate = async (data: any) => {
                                   </div>
                                   <div>
                                     <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">BAUTISMO</div>
-                                    <span className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold ${member.bautizado ? 'bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 border border-blue-200' : 'bg-gradient-to-r from-gray-100 to-slate-100 text-gray-700 border border-gray-200'}`}>
-                                      {member.bautizado ? (
+                                    <span className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold ${member.bautismoEstado === BautismoEstado.BAUTIZADO ? 'bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 border border-blue-200' : member.bautismoEstado === BautismoEstado.EN_DISCIPULADO ? 'bg-gradient-to-r w-38 from-purple-100 to-violet-100 text-purple-800 border border-purple-200' : 'bg-gradient-to-r from-gray-100 to-slate-100 text-gray-700 border border-gray-200'}`}>
+                                      {member.bautismoEstado === BautismoEstado.BAUTIZADO ? (
                                         <>
                                           <span className="h-2 w-2 rounded-full bg-blue-500"></span>
                                           BAUTIZADO
                                         </>
+                                      ) : member.bautismoEstado === BautismoEstado.EN_DISCIPULADO ? (
+                                        <>
+                                          <span className="h-2 w-2 rounded-full bg-purple-500"></span>
+                                          EN DISCIPULADO
+                                        </>
                                       ) : (
                                         <>
-                                          <span className="h-2 w-2 rounded-full  bg-gray-400"></span>
-                                          AÚN
+                                          <span className="h-2 w-2 rounded-full bg-gray-400"></span>
+                                          NO BAUTIZADO
                                         </>
                                       )}
                                     </span>
@@ -1737,20 +1916,34 @@ const handleCreate = async (data: any) => {
                             {/* Columna Acciones */}
                             <td className="py-6 px-6">
                               <div className="flex flex-col gap-3 min-w-[160px]">
-                                <button
-                                  onClick={() => handleEdit(member)}
-                                  className="group bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-5 py-2.5 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2"
-                                >
-                                  <Edit className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                                  Editar
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(member)}
-                                  className="group bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-5 py-2.5 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2"
-                                >
-                                  <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                                  Eliminar
-                                </button>
+                                {/* Botón Editar - solo para ROOT, SUPER_ADMIN, ADMIN */}
+                                {permissions.canEdit && (
+                                  <button
+                                    onClick={() => handleEdit(member)}
+                                    className="group bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-5 py-2.5 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2"
+                                  >
+                                    <Edit className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                    Editar
+                                  </button>
+                                )}
+                                
+                                {/* Botón Eliminar - solo para ROOT, SUPER_ADMIN */}
+                                {permissions.canDelete && (
+                                  <button
+                                    onClick={() => handleDelete(member)}
+                                    className="group bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-5 py-2.5 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2"
+                                  >
+                                    <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                    Eliminar
+                                  </button>
+                                )}
+                                
+                                {/* Si no tiene permisos de edición ni eliminación, mostrar mensaje */}
+                                {!permissions.canEdit && !permissions.canDelete && (
+                                  <div className="text-center py-2">
+                                    <span className="text-xs text-gray-500">Acciones no disponibles</span>
+                                  </div>
+                                )}
                               </div>
                             </td>
                           </tr>

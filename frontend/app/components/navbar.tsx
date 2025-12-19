@@ -84,8 +84,8 @@ export default function Navbar() {
   // Definir todas las rutas del sistema
   const navItems = [
     { 
-      id: 'Inicio', 
-      label: 'Dashboard', 
+      id: 'Dashboard', 
+      label: 'Inicio', 
       icon: BarChart3, 
       href: '/dashboard',
       paths: ['/dashboard'] 
@@ -598,7 +598,7 @@ export default function Navbar() {
                       {churchName}
                     </h3>
                     <p className="text-blue-600 text-xs">Administración</p>
-                    <span className="flex items-center gap-1 px-1.5 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800 font-medium capitalize">
+                    <span className="inline-flex items-center gap-1 w-fit whitespace-nowrap px-1.5 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800 font-medium capitalize">
                       {userRole.toLowerCase().replace('_', ' ')}
                       <RoleIcon size={10} />
                     </span>

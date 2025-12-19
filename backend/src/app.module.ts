@@ -11,6 +11,7 @@ import { CursosModule } from './cursos/cursos.module';
 import { AuthService } from './auth/auth.service';
 import { AuthModule } from './auth/auth.module';
 import { UsuariosModule } from './usuarios/usuarios.module';
+import { GetWebsocketsModule } from './get-websockets/get-websockets.module';
 
 @Module({
   imports: [ConfigModule.forRoot({isGlobal: true}), TypeOrmModule.forRoot({
@@ -22,7 +23,7 @@ import { UsuariosModule } from './usuarios/usuarios.module';
     database: process.env.DB_NAME,
     entities: [__dirname + '/**/*.entity{.ts,.js}'],
     synchronize: true,
-  }), MiembrosModule, IglesiaModule, OfrendasModule, FamiliasModule, CursosModule, AuthModule, UsuariosModule],
+  }), MiembrosModule, IglesiaModule, OfrendasModule, FamiliasModule, CursosModule, AuthModule, UsuariosModule, GetWebsocketsModule],
   controllers: [AppController],
   providers: [AppService, AuthService],
 })
