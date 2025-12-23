@@ -6,18 +6,28 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Miembro } from './entities/miembro.entity';
 import { Repository } from 'typeorm';
 import { resourceLimits } from 'node:worker_threads';
+import { GetWebsocketsGateway } from 'src/get-websockets/get-websockets.gateway';
+
+
 @Injectable()
 export class MiembrosService {
   private readonly logger = new Logger('MiembrosService');
   constructor( 
     @InjectRepository(Miembro)
     private readonly miembroRepository: Repository<Miembro>,
+    private readonly wss: GetWebsocketsGateway,
    ){}
 
 
   async create(createMiembroDto: CreateMiembroDto) {
     try{
-    const result = await this.miembroRepository.create(createMiembroDto);
+    const {iglesiaId, ...data} = createMiembroDto;
+    const existe = await this.miembroRepository.findOne({ where: { cedula: data.cedula } });
+    if (existe) throw new BadRequestException('Esta cédula ya está en uso');
+    const result = await this.miembroRepository.create({
+      ...data,
+      iglesia_id: iglesiaId
+    });
     this.miembroRepository.save(result);
     const {createdAt, updatedAt, id, ...rest} = result;
     return rest;
@@ -26,8 +36,8 @@ export class MiembrosService {
     }
   }
 
-  async findAll() {
-    const result = await this.miembroRepository.find({
+  async findAll( iglesia : string) {
+    const result = await this.miembroRepository.find({ where: { iglesia_id: iglesia },
       relations: ['familias'],
     });
     const miembros = result.map(({ createdAt, updatedAt, familias, ...rest }) =>

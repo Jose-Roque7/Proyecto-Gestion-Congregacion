@@ -5,7 +5,6 @@ import { FaEye, FaEyeSlash, FaEnvelope, FaLock, FaChurch} from 'react-icons/fa';
 import {login} from '../lib/crud';
 import { useRouter } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
-import { connectToServer } from '../lib/socket-client';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -15,9 +14,6 @@ const Login = () => {
   const router = useRouter();
   const [showLoader, setShowLoader] = useState(true);
 
-   useEffect(() => {
-    connectToServer();
-  }, []);
 
    useEffect(() => {
     const timer = setTimeout(() => {

@@ -21,6 +21,8 @@ import {
 import toast from 'react-hot-toast'
 import Cookies from "js-cookie";
 import { jwtDecode } from 'jwt-decode'
+import { connectToServer } from '@/app/lib/socket-client'
+import { createMiembro, getMiembros } from '@/app/lib/crud'
 
 interface CustomJwtPayload {
   userId: string;
@@ -51,7 +53,7 @@ interface Member {
   cedula?: string
   img?: string
   genero: UserGene
-  iglesiaId?: string
+  iglesia_id?: string
   puesto?: string
   fecha_ingreso?: string
   fecha_nacimiento: string
@@ -60,6 +62,7 @@ interface Member {
   estado?: boolean
   bautismoEstado: BautismoEstado
   fecha_bautismo?: string
+  familias?: string[]
 }
 
 // Función para verificar permisos según el rol
@@ -882,6 +885,11 @@ export default function Members() {
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive' | 'bautizado' | 'no_bautizado' | 'en_discipulado' | 'hombres' | 'mujeres'>('all')
   const { isMobile } = useScreenSize(1025);
   const [userData, setUserData] = useState<CustomJwtPayload | null>(null);
+  useEffect(() => {
+      const token = Cookies.get('auth_token');
+      connectToServer(token!);
+    }, []);
+
 
   // Obtener permisos basados en el rol del usuario
   const permissions = getPermissions(userData);
@@ -893,7 +901,7 @@ export default function Members() {
     cedula: '',
     img: '',
     genero: UserGene.MASCULINO,
-    iglesiaId: '',
+    iglesia_id: '',
     puesto: '',
     fecha_ingreso: '',
     fecha_nacimiento: '',
@@ -921,66 +929,7 @@ export default function Members() {
   const fetchMembers = async () => {
     setIsLoading(true)
     try {
-      const mockData: Member[] = [
-        {
-          id: '1',
-          nombres: 'Juan Carlos',
-          apellidos: 'Pérez Rodríguez',
-          cedula: '00112345678',
-          genero: UserGene.MASCULINO,
-          fecha_nacimiento: '1990-05-15',
-          telefono: '8091234567',
-          puesto: 'Diácono Principal',
-          fecha_ingreso: '2020-01-15',
-          direccion: 'Calle Principal #123, Santo Domingo Este',
-          estado: true,
-          bautismoEstado: BautismoEstado.BAUTIZADO,
-          fecha_bautismo: '2015-06-20'
-        },
-        {
-          id: '2',
-          nombres: 'María Elena',
-          apellidos: 'Gómez de la Cruz',
-          cedula: '40278901234',
-          genero: UserGene.FEMENINO,
-          fecha_nacimiento: '1985-08-22',
-          telefono: '8298765432',
-          puesto: 'Líder de Alabanza',
-          fecha_ingreso: '2019-03-10',
-          direccion: 'Av. Independencia #456, Distrito Nacional',
-          estado: true,
-          bautismoEstado: BautismoEstado.BAUTIZADO,
-          fecha_bautismo: '2010-12-10'
-        },
-        {
-          id: '3',
-          nombres: 'Carlos Alberto',
-          apellidos: 'Martínez Fernández',
-          cedula: '00123456789',
-          genero: UserGene.MASCULINO,
-          fecha_nacimiento: '1992-11-30',
-          telefono: '8495551234',
-          puesto: 'Pastor Asociado',
-          fecha_ingreso: '2018-06-20',
-          direccion: 'Calle Las Flores #789, Santiago',
-          estado: true,
-          bautismoEstado: BautismoEstado.EN_DISCIPULADO
-        },
-        {
-          id: '4',
-          nombres: 'Ana María',
-          apellidos: 'Fernández López',
-          cedula: '22345678901',
-          genero: UserGene.FEMENINO,
-          fecha_nacimiento: '1998-03-12',
-          telefono: '8097778888',
-          puesto: 'Maestra de Niños',
-          fecha_ingreso: '2021-09-05',
-          direccion: 'Sector Los Ríos #321',
-          estado: true,
-          bautismoEstado: BautismoEstado.NO_BAUTIZADO
-        }
-      ]
+      const mockData: Member[] = await getMiembros();
 
       setMembers(mockData)
     } catch (error) {
@@ -1015,15 +964,8 @@ export default function Members() {
   // Y modifica la función handleCreate para usar formData:
   const handleCreate = async (data: any) => {
     try {
-      const newMember: Member = {
-        ...data,
-        id: String(members.length+1),
-        genero: data.genero as UserGene,
-        estado: data.estado ?? true,
-        bautismoEstado: data.bautismoEstado ?? BautismoEstado.NO_BAUTIZADO,
-      };
 
-      setMembers(prev => [...prev, newMember]);
+       await createMiembro(data);
       setShowCreateModal(false);
       resetForm();
       
@@ -1080,7 +1022,7 @@ export default function Members() {
       cedula: '',
       img: '',
       genero: UserGene.MASCULINO,
-      iglesiaId: '',
+      iglesia_id: '',
       puesto: '',
       fecha_ingreso: '',
       fecha_nacimiento: '',

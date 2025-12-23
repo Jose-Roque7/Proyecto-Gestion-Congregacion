@@ -1,0 +1,5 @@
+export enum BautismoEstado {
+  BAUTIZADO = 'BAUTIZADO',
+  NO_BAUTIZADO = 'NO_BAUTIZADO',
+  EN_DISCIPULADO = 'EN_DISCIPULADO',
+}

@@ -22,7 +22,7 @@ async function seed() {
   // 1️⃣ Crear Iglesia
   const iglesiaRepo = dataSource.getRepository(Iglesiaconfig);
   const iglesia = iglesiaRepo.create({
-    nombres: 'Iglesia Paz y Justicia',
+    nombres: 'Iglesia de prueba',
     logo: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTy27eVuF9HH-q15yVcxLXl4uxxM8Mjb3si0w&s',
   });
   await iglesiaRepo.save(iglesia);
@@ -30,8 +30,8 @@ async function seed() {
   // 2️⃣ Crear SUPER_ADMIN
   const usuarioRepo = dataSource.getRepository(Usuario);
   const admin = usuarioRepo.create({
-    nombre: 'Jose Roque',
-    email: 'admin@a.com',
+    nombre: 'Pastor',
+    email: 'a@a.com',
     password: hashPassword('123'),
     rol: UserRole.ROOT,
     iglesia_id: iglesia.id,

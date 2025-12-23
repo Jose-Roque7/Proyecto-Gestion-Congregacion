@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards } from '@nestjs/common';
 import { UsuariosService } from './usuarios.service';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -8,13 +8,11 @@ import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { ApiKeyGuard } from 'src/common/guards/api-key.guard';
 
 @Controller('usuarios')
-@UseGuards(JwtAuthGuard, RolesGuard)
 export class UsuariosController {
   constructor(private readonly service: UsuariosService) {}
 
   @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.ROOT)
-  @UseGuards(JwtAuthGuard)
-  @UseGuards( ApiKeyGuard)
+  @UseGuards(ApiKeyGuard, JwtAuthGuard, RolesGuard) 
   @Post()
   create(@Body() dto: CreateUsuarioDto) {
     return this.service.create(dto);

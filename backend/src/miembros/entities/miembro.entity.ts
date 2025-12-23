@@ -1,8 +1,10 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { Familia } from '../../familias/entities/familia.entity';
 import { Ofrendas } from '../../ofrendas/entities/ofrenda.entity';
 import { Inscripcion } from '../../cursos/entities/inscripcion.entity';
 import { UserGene } from 'src/common/enums/gene.enum';
+import { BautismoEstado } from 'src/common/enums/bautismo-estado.enum';
+import { Iglesiaconfig } from 'src/iglesia/entities/iglesia.entity';
 
 @Entity('miembros')
 export class Miembro {
@@ -15,44 +17,90 @@ export class Miembro {
   @Column({ type: 'text' })
   apellidos: string;
 
-  @Column({ type: 'text', nullable: true, unique: true })
+  @Column({ 
+    type: 'varchar', 
+    length: 11, 
+    nullable: true, 
+    unique: true 
+  })
   cedula: string;
 
   @Column({ type: 'text', nullable: true })
   img: string;
 
-  @Column({ type: 'text', default: 'miembro' })
+  @Column({ 
+    type: 'varchar', 
+    length: 50, 
+    nullable: true,
+    default: 'Miembro' 
+  })
   puesto: string;
 
   @Column({ type: 'text', nullable: true })
   direccion: string;
 
   @Column({
-      type: 'enum',
-      enum: UserGene,
-      default: UserGene.MALE,
-    })
-    genero: UserGene;
+    type: 'enum',
+    enum: UserGene,
+    default: UserGene.MASCULINO,
+  })
+  genero: UserGene;
 
-  @Column({ type: 'varchar', length: 10, nullable: true })
+  @Column({ 
+    type: 'varchar', 
+    length: 10, 
+    nullable: false 
+  })
   telefono: string;
 
-  @Column({ type: 'date' })
+  @Column({ 
+    type: 'date',
+    nullable: false 
+  })
   fecha_nacimiento: Date;
 
-  @Column({ type: 'date', nullable: true })
+  @Column({ 
+    type: 'date', 
+    nullable: true 
+  })
   fecha_ingreso: Date;
 
-  @Column('uuid')
-  iglesiaId: string;
+    @ManyToOne(() => Iglesiaconfig)
+    @JoinColumn({ name: 'iglesia_id' })
+    iglesia: Iglesiaconfig;
+  
+    @Column()
+    iglesia_id: string;
 
-  @Column({ type: 'boolean', default: true })
+  @Column({ 
+    type: 'boolean', 
+    default: true 
+  })
   estado: boolean;
 
-  @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
+  @Column({
+    type: 'enum',
+    enum: BautismoEstado,
+    default: BautismoEstado.NO_BAUTIZADO,
+  })
+  bautismoEstado: BautismoEstado;
+
+  @Column({ 
+    type: 'date', 
+    nullable: true 
+  })
+  fecha_bautismo: Date;
+
+  @CreateDateColumn({ 
+    name: 'created_at', 
+    type: 'timestamp' 
+  })
   createdAt: Date;
 
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamp' })
+  @UpdateDateColumn({ 
+    name: 'updated_at', 
+    type: 'timestamp' 
+  })
   updatedAt: Date;
 
   @OneToMany(() => Familia, familia => familia.miembro)
@@ -61,7 +109,6 @@ export class Miembro {
   @OneToMany(() => Ofrendas, ofrendas => ofrendas.miembro)
   ofrendas: Ofrendas[];
 
-  // ➤ Relación con inscripciones
   @OneToMany(() => Inscripcion, inscripcion => inscripcion.miembro)
   inscripciones: Inscripcion[];
 }

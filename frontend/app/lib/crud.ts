@@ -18,8 +18,8 @@ export const login = async (data: any) => {
 
 export const createMiembro = async (data: any) => {
     try {
-        const verify = await verifyToken();
-        if (!verify) return;
+        // const verify = await verifyToken();
+        // if (!verify) return;
         const response = await api.post("/miembros", data);
         return response.data;
     } catch (error) {
@@ -31,6 +31,17 @@ export const createUser = async (data: any) => {
     try {
         verifyToken();
         const response = await api.post("/usuarios", data);
+        return response.data;
+    } catch (error) {
+        return;
+    }
+}
+
+export const getMiembros = async () => {
+    try {
+        // const verify = await verifyToken(); 
+        // if (!verify) return;
+        const response = await api.get("/miembros");
         return response.data;
     } catch (error) {
         return;

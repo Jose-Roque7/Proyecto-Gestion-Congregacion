@@ -1,4 +1,4 @@
 export enum UserGene {
-  MALE = 'MALE',
-  FEMALE = 'FEMALE',
+  MASCULINO = 'MASCULINO',
+  FEMENINO = 'FEMENINO',
 }
