@@ -1,19 +1,29 @@
 import { Manager, Socket } from 'socket.io-client';
 let socket: Socket | null = null;
 
-export const connectToServer = ( token : string) => {
-    const manager = new Manager('http://localhost:5000',{
+export const connectToServer = (token: string, onDataUpdate?: (data: any) => void) => {
+    const manager = new Manager('http://localhost:5000', {
         extraHeaders: {
-            authentication : token
+            authentication: token
         }
     });
+    
     socket = manager.socket('/get');
-    addListeners(socket);
+    
+    // Si hay callback, usarlo
+    if (onDataUpdate) {
+        socket.on('members-update', (data: any) => {
+            console.log('Datos recibidos:', data);
+            onDataUpdate(data); // Llamar al callback con la data
+        });
+    } else {
+        addListeners(socket);
+    }
 }
 
  export const addListeners = (socket: Socket) => {
-       socket.on('clients-update', (data: any) => {
-        console.log('Clients updated:', data);
+       socket.on('members-update', (data: any) => {
+        return data;
     });
 };
 

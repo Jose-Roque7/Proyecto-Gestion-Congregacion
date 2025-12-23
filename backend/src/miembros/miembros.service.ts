@@ -28,8 +28,10 @@ export class MiembrosService {
       ...data,
       iglesia_id: iglesiaId
     });
-    this.miembroRepository.save(result);
+    await this.miembroRepository.save(result);
     const {createdAt, updatedAt, id, ...rest} = result;
+    const update = await this.findAll(iglesiaId!);
+    this.wss.emitMembersUpdate(iglesiaId!, update);
     return rest;
     }catch(err){
       this.handleDbExeption(err);

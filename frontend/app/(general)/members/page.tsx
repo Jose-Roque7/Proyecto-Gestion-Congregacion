@@ -115,9 +115,19 @@ const formatTelefono = (telefono: string) => {
   return telefono
 }
 
+// Función auxiliar para crear fecha sin problemas de zona horaria
+const crearFechaLocal = (fecha: string): Date => {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+    const [year, month, day] = fecha.split('-').map(Number)
+    return new Date(year, month - 1, day)
+  }
+  return new Date(fecha)
+}
+
 const formatFecha = (fecha?: string) => {
   if (!fecha) return 'N/A'
-  return new Date(fecha).toLocaleDateString('es-ES', {
+  const date = crearFechaLocal(fecha)
+  return date.toLocaleDateString('es-ES', {
     day: 'numeric',
     month: 'short',
     year: 'numeric'
@@ -126,7 +136,8 @@ const formatFecha = (fecha?: string) => {
 
 const formatFechaCorta = (fecha?: string) => {
   if (!fecha) return 'N/A'
-  return new Date(fecha).toLocaleDateString('es-ES', {
+  const date = crearFechaLocal(fecha)
+  return date.toLocaleDateString('es-ES', {
     day: 'numeric',
     month: 'short'
   })
@@ -885,10 +896,19 @@ export default function Members() {
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive' | 'bautizado' | 'no_bautizado' | 'en_discipulado' | 'hombres' | 'mujeres'>('all')
   const { isMobile } = useScreenSize(1025);
   const [userData, setUserData] = useState<CustomJwtPayload | null>(null);
-  useEffect(() => {
-      const token = Cookies.get('auth_token');
-      connectToServer(token!);
-    }, []);
+   useEffect(() => {
+    const token = Cookies.get('auth_token');
+    
+    // Conectar con callback
+    if (token) {
+      connectToServer(token, (data) => {
+        console.log('Data recibida en componente:', data);
+        setMembers(data); // ¡Directamente aquí!
+      });
+    }
+    
+    fetchMembers();
+  }, []);
 
 
   // Obtener permisos basados en el rol del usuario
