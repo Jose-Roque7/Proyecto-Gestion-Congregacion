@@ -21,7 +21,7 @@ import {
 import toast from 'react-hot-toast'
 import Cookies from "js-cookie";
 import { jwtDecode } from 'jwt-decode'
-import { connectToServer } from '@/app/lib/socket-client'
+import { connectToServer, disconnectSocket } from '@/app/lib/socket-client'
 import { createMiembro, getMiembros } from '@/app/lib/crud'
 
 interface CustomJwtPayload {
@@ -896,19 +896,23 @@ export default function Members() {
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive' | 'bautizado' | 'no_bautizado' | 'en_discipulado' | 'hombres' | 'mujeres'>('all')
   const { isMobile } = useScreenSize(1025);
   const [userData, setUserData] = useState<CustomJwtPayload | null>(null);
-   useEffect(() => {
-    const token = Cookies.get('auth_token');
-    
-    // Conectar con callback
-    if (token) {
-      connectToServer(token, (data) => {
-        console.log('Data recibida en componente:', data);
-        setMembers(data); // ¡Directamente aquí!
-      });
-    }
-    
-    fetchMembers();
-  }, []);
+  useEffect(() => {
+  const token = Cookies.get('auth_token');
+
+  // 1️⃣ Cargar datos iniciales
+  fetchMembers();
+
+  // 2️⃣ Conectar socket si hay token
+  if (token) {
+    connectToServer(token, setMembers);
+  }
+
+  // 3️⃣ Cleanup
+  return () => {
+    disconnectSocket();
+  };
+}, []);
+
 
 
   // Obtener permisos basados en el rol del usuario
