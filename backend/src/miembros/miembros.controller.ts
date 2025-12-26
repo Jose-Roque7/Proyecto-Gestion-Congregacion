@@ -26,18 +26,21 @@ export class MiembrosController {
     return this.miembrosService.findAll(iglesiaId);
   }
 
+  @UseGuards(ApiKeyGuard, JwtAuthGuard)
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.miembrosService.findOne(+id);
+    return this.miembrosService.findOne(id);
   }
 
+  @UseGuards(ApiKeyGuard, JwtAuthGuard)
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateMiembroDto: UpdateMiembroDto) {
-    return this.miembrosService.update(+id, updateMiembroDto);
+    return this.miembrosService.update(id, updateMiembroDto);
   }
 
+  @UseGuards(ApiKeyGuard, JwtAuthGuard)
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.miembrosService.remove(+id);
+  remove(@Param('id',) id: string) {
+    return this.miembrosService.remove(id);
   }
 }

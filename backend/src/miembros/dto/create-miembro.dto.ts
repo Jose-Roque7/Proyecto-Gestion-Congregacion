@@ -84,7 +84,7 @@ export class CreateMiembroDto {
   @IsBoolean({ message: 'El estado debe ser verdadero o falso' })
   @IsOptional()
   @Type(() => Boolean)
-  estado?: boolean = true;
+  estado?: boolean;
 
   @IsEnum(BautismoEstado, { 
     message: 'El estado de bautismo debe ser BAUTIZADO, NO_BAUTIZADO o EN_DISCIPULADO' 

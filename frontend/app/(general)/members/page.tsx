@@ -22,7 +22,7 @@ import toast from 'react-hot-toast'
 import Cookies from "js-cookie";
 import { jwtDecode } from 'jwt-decode'
 import { connectToServer, disconnectSocket } from '@/app/lib/socket-client'
-import { createMiembro, getMiembros } from '@/app/lib/crud'
+import { createMiembro, deleteMiembro, getMiembros, updateMiembro } from '@/app/lib/crud'
 
 interface CustomJwtPayload {
   userId: string;
@@ -166,7 +166,7 @@ const useScreenSize = (mobileBreakpoint: number = 1025) => {
   return { isMobile, screenWidth };
 };
 
-// Componente Modal de Editar - MODIFICA ESTE CÓDIGO
+// Componente Modal de Editar
 const ModalEditarMiembro = ({ 
   open, 
   onClose, 
@@ -197,25 +197,19 @@ const ModalEditarMiembro = ({
     }
   }, [member]);
 
-  // Limpiar formulario cuando el modal se cierra - SIMPLIFICADO
+  // Limpiar formulario cuando el modal se cierra
   useEffect(() => {
-  if (open && member) {
-    setForm(member);
-    setCedulaDisplay(formatCedula(member.cedula).replace('No especificada', ''));
-    setTelefonoDisplay(formatTelefono(member.telefono));
-    setShowFechaBautismo(member.bautismoEstado === BautismoEstado.BAUTIZADO);
-  }
-  
-  if (!open) {
-    // Limpiar inmediatamente sin setTimeout
-    setForm(null);
-    setCedulaDisplay("");
-    setTelefonoDisplay("");
-    setErrors({});
-    setIsSubmitting(false);
-    setShowFechaBautismo(false);
-  }
-}, [open, member]);
+    if (!open) {
+      setTimeout(() => {
+        setForm(null);
+        setCedulaDisplay("");
+        setTelefonoDisplay("");
+        setErrors({});
+        setIsSubmitting(false);
+        setShowFechaBautismo(false);
+      }, 300);
+    }
+  }, [open]);
 
   // Mostrar/ocultar fecha de bautismo según el estado
   useEffect(() => {
@@ -227,7 +221,6 @@ const ModalEditarMiembro = ({
     }
   }, [form?.bautismoEstado]);
 
-  // Resto del código permanece igual...
   const formatCedulaDisplay = (value: string): string => {
     const numbers = value.replace(/\D/g, '');
     if (numbers.length <= 3) {
@@ -321,14 +314,22 @@ const ModalEditarMiembro = ({
 
     setIsSubmitting(true);
     try {
+      // Crear objeto limpio sin campos vacíos
+      const cleanData: any = {};
+      
+      Object.entries(form).forEach(([key, value]) => {
+        // Solo incluir si tiene valor y no es el id
+        if (key !== 'id' && value !== "" && value !== null && value !== undefined) {
+          cleanData[key] = value;
+        }
+      });
+      
       await new Promise(resolve => setTimeout(resolve, 300));
-      const cleanData = Object.fromEntries(
-        Object.entries(form).filter(([_, value]) => value !== "" && value !== null && value !== undefined)
-      );
       onSave(cleanData);
       onClose();
     } catch (error) {
       console.error("Error:", error);
+      toast.error('Error al actualizar miembro');
     } finally {
       setIsSubmitting(false);
     }
@@ -338,7 +339,7 @@ const ModalEditarMiembro = ({
     onClose();
   };
 
-  // Condición de renderizado simplificada - igual que en ModalEliminarMiembro
+  // Condición de renderizado simplificada
   if (!open || !form) return null;
 
   const today = new Date().toISOString().split('T')[0];
@@ -383,7 +384,6 @@ const ModalEditarMiembro = ({
           <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
               
-              {/* Resto del formulario permanece igual... */}
               <div className="space-y-1.5 sm:space-y-2">
                 <label className="block text-sm font-medium text-gray-700">
                   Nombres <span className="text-red-500">*</span>
@@ -884,6 +884,36 @@ const ModalEliminarMiembro = ({
   );
 };
 
+// Función para obtener solo los campos que han cambiado - VERSION CORREGIDA
+const getChangedFields = (original: Member, updated: any): any => {
+  const changed: any = {};
+  
+  // Campos que queremos comparar
+  const fieldsToCompare = [
+    'nombres', 'apellidos', 'cedula', 'img', 'genero', 'puesto',
+    'fecha_ingreso', 'fecha_nacimiento', 'direccion', 'telefono',
+    'estado', 'bautismoEstado', 'fecha_bautismo'
+  ];
+  
+  fieldsToCompare.forEach(field => {
+    const originalValue = original[field as keyof Member];
+    const updatedValue = updated[field];
+    
+    // Solo procesar si el campo existe en los datos actualizados
+    if (updatedValue !== undefined) {
+      const originalStr = String(originalValue || '');
+      const updatedStr = String(updatedValue || '');
+      
+      // Solo agregar si el valor es diferente
+      if (originalStr !== updatedStr) {
+        changed[field] = updatedValue;
+      }
+    }
+  });
+  
+  return changed;
+};
+
 export default function Members() {
   // Estados
   const [members, setMembers] = useState<Member[]>([])
@@ -896,24 +926,23 @@ export default function Members() {
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive' | 'bautizado' | 'no_bautizado' | 'en_discipulado' | 'hombres' | 'mujeres'>('all')
   const { isMobile } = useScreenSize(1025);
   const [userData, setUserData] = useState<CustomJwtPayload | null>(null);
+  
   useEffect(() => {
-  const token = Cookies.get('auth_token');
+    const token = Cookies.get('auth_token');
 
-  // 1️⃣ Cargar datos iniciales
-  fetchMembers();
+    // 1️⃣ Cargar datos iniciales
+    fetchMembers();
 
-  // 2️⃣ Conectar socket si hay token
-  if (token) {
-    connectToServer(token, setMembers);
-  }
+    // 2️⃣ Conectar socket si hay token
+    if (token) {
+      connectToServer(token, setMembers);
+    }
 
-  // 3️⃣ Cleanup
-  return () => {
-    disconnectSocket();
-  };
-}, []);
-
-
+    // 3️⃣ Cleanup
+    return () => {
+      disconnectSocket();
+    };
+  }, []);
 
   // Obtener permisos basados en el rol del usuario
   const permissions = getPermissions(userData);
@@ -954,16 +983,14 @@ export default function Members() {
     setIsLoading(true)
     try {
       const mockData: Member[] = await getMiembros();
-
       setMembers(mockData)
     } catch (error) {
-      console.error('Error fetching members:', error)
+      toast.error('Error fetching members')
     } finally {
       setIsLoading(false)
     }
   }
 
-  // Filtrar miembros
   const filteredMembers = members.filter(member => {
     const searchLower = searchTerm.toLowerCase()
     const matchesSearch =
@@ -985,15 +1012,11 @@ export default function Members() {
     return matchesSearch && matchesFilter
   })
   
-  // Y modifica la función handleCreate para usar formData:
   const handleCreate = async (data: any) => {
     try {
-
-       await createMiembro(data);
+      await createMiembro(data);
       setShowCreateModal(false);
       resetForm();
-      
-      // Mostrar mensaje de éxito (opcional)
       toast.success('Miembro creado exitosamente');
     } catch (error) {
       toast.error('Error al crear el miembro');
@@ -1005,20 +1028,40 @@ export default function Members() {
     setShowEditModal(true)
   }
 
+  // MODIFICADO: Función que solo envía campos que han cambiado
   const handleUpdate = async (updatedData: any) => {
     if (!selectedMember) return
 
     try {
-      setMembers(prev => prev.map(member =>
-        member.id === selectedMember.id
-          ? { ...updatedData, id: member.id }
-          : member
-      ))
+      // Obtener el objeto original del miembro
+      const originalMember = members.find(m => m.id === selectedMember.id);
+      
+      if (!originalMember) return;
+      
+      // Obtener solo los campos que han cambiado
+      const changedFields = getChangedFields(originalMember, updatedData);
+      
+      console.log('Campos originales:', originalMember);
+      console.log('Datos del formulario:', updatedData);
+      console.log('Campos cambiados (SOLO ESTOS SE ENVIARÁN):', changedFields);
+      
+      // Si no hay cambios, mostrar mensaje y cerrar modal
+      if (Object.keys(changedFields).length === 0) {
+        toast.success('No se detectaron cambios');
+        setShowEditModal(false);
+        setSelectedMember(null);
+        return;
+      }
+      
+      // Enviar solo los campos cambiados
+      await updateMiembro(selectedMember.id, changedFields);
 
-      setShowEditModal(false)
-      setSelectedMember(null)
+      setShowEditModal(false);
+      setSelectedMember(null);
+      toast.success('Miembro actualizado exitosamente');
     } catch (error) {
-      console.error('Error updating member:', error)
+      console.error('Error en handleUpdate:', error);
+      toast.error('Error actualizando miembro');
     }
   }
 
@@ -1031,11 +1074,12 @@ export default function Members() {
     if (!selectedMember) return
 
     try {
-      setMembers(prev => prev.filter(member => member.id !== selectedMember.id))
+      await deleteMiembro(selectedMember.id);
       setShowDeleteModal(false)
       setSelectedMember(null)
+      toast.success('Member deleted successfully')
     } catch (error) {
-      console.error('Error deleting member:', error)
+      toast.error('Error deleting member')
     }
   }
 

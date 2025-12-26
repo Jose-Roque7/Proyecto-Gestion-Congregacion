@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { CreateMiembroDto } from './dto/create-miembro.dto';
 import { UpdateMiembroDto } from './dto/update-miembro.dto';
 import { validate as IsUUID } from 'uuid';
@@ -7,6 +7,7 @@ import { Miembro } from './entities/miembro.entity';
 import { Repository } from 'typeorm';
 import { resourceLimits } from 'node:worker_threads';
 import { GetWebsocketsGateway } from 'src/get-websockets/get-websockets.gateway';
+import { emit } from 'node:process';
 
 
 @Injectable()
@@ -47,17 +48,30 @@ export class MiembrosService {
     return miembros;
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} miembro`;
+  async findOne(id: string) {
+    const miembro = await this.miembroRepository.findOne({ where: { id: id },
+      relations: ['familias'],
+    });
+    if(!miembro) throw new NotFoundException('Miembro no encontrado');
+    return miembro;
   }
 
-  update(id: number, updateMiembroDto: UpdateMiembroDto) {
-    return `This action updates a #${id} miembro`;
+  async update(id: string, updateMiembroDto: UpdateMiembroDto) {
+    const { iglesiaId, ...res } = updateMiembroDto;
+    const miembro = await this.miembroRepository.findOne({ where: { id: id } });
+    if(!miembro) throw new NotFoundException('Miembro no encontrado');
+    await this.miembroRepository.update(id, {...res, iglesia_id: iglesiaId});
+    const members = await this.findAll(miembro.iglesia_id);
+    return this.wss.emitMembersUpdate(miembro.iglesia_id!, members);
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} miembro`;
-  }
+  async remove(id: string) {
+    const miembro = await this.miembroRepository.findOne({ where: { id: id } });
+    if(!miembro) throw new NotFoundException('Miembro no encontrado');
+    const res = await this.miembroRepository.delete(id);
+    const members = await this.findAll(miembro.iglesia_id);
+    return this.wss.emitMembersUpdate(miembro.iglesia_id!, members);
+    }
 
   private handleDbExeption(err : any){
     if(err.code === '23505'){

@@ -18,8 +18,8 @@ export const login = async (data: any) => {
 
 export const createMiembro = async (data: any) => {
     try {
-        // const verify = await verifyToken();
-        // if (!verify) return;
+        const verify = await verifyToken();
+        if (!verify) return;   
         const response = await api.post("/miembros", data);
         return response.data;
     } catch (error) {
@@ -29,7 +29,8 @@ export const createMiembro = async (data: any) => {
 
 export const createUser = async (data: any) => {
     try {
-        verifyToken();
+        const verify = await verifyToken();
+        if (!verify) return;
         const response = await api.post("/usuarios", data);
         return response.data;
     } catch (error) {
@@ -39,8 +40,8 @@ export const createUser = async (data: any) => {
 
 export const getMiembros = async () => {
     try {
-        // const verify = await verifyToken(); 
-        // if (!verify) return;
+        const verify = await verifyToken(); 
+        if (!verify) return;
         const response = await api.get("/miembros");
         return response.data;
     } catch (error) {
@@ -48,6 +49,27 @@ export const getMiembros = async () => {
     }
 }
 
+export const updateMiembro = async (id: string, data: any) => {
+    try {
+        const verify = await verifyToken();
+        if (!verify) return;
+        const response = await api.patch(`/miembros/${id}`, data);
+        return response.data;
+    } catch (error) {
+        return;
+    }
+}
+
+export const deleteMiembro = async (id: string) => {
+    try {
+        const verify = await verifyToken();
+        if (!verify) return;
+        const response = await api.delete(`/miembros/${id}`);
+        return response.data;
+    } catch (error) {
+        return;
+    }
+}
 
 const verifyToken = async (): Promise<boolean> => {
     try {

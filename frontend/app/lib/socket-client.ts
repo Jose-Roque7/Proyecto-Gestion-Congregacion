@@ -14,7 +14,6 @@ export const connectToServer = (
 
   socket = manager.socket('/get');
 
-  // 👇 AQUÍ ES DONDE VA
   socket.off('members-update');
   socket.on('members-update', onMembersUpdate);
 };
