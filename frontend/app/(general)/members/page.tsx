@@ -1060,7 +1060,6 @@ export default function Members() {
       setSelectedMember(null);
       toast.success('Miembro actualizado exitosamente');
     } catch (error) {
-      console.error('Error en handleUpdate:', error);
       toast.error('Error actualizando miembro');
     }
   }

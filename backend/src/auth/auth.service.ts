@@ -16,6 +16,8 @@ export class AuthService {
     
     try{
     const user = await this.usuariosService.findByEmail(dto.email);
+    const verify = await comparePassword(dto.password, user.password);
+    if(!verify) return {messege: 'Usuario o contraseña incorrectos'};
     const {id, createdAt, updatedAt, ...res} = user.iglesia 
     const payload = {
       id: user.id,
