@@ -23,8 +23,8 @@ export class MiembrosService {
   async create(createMiembroDto: CreateMiembroDto) {
     try{
     const {iglesiaId, ...data} = createMiembroDto;
-    const existe = await this.miembroRepository.findOne({ where: { cedula: data.cedula } });
-    if (existe) throw new BadRequestException('Esta cédula ya está en uso');
+    const existe = await this.miembroRepository.findOne({ where: { cedula: data.cedula, iglesia_id: iglesiaId } });
+    if (existe) return 'Cedula ya existente';
     const result = await this.miembroRepository.create({
       ...data,
       iglesia_id: iglesiaId
@@ -58,6 +58,11 @@ export class MiembrosService {
 
   async update(id: string, updateMiembroDto: UpdateMiembroDto) {
     const { iglesiaId, ...res } = updateMiembroDto;
+    if(res.cedula){
+      const existe = await this.miembroRepository.findOne({ where: { cedula: res.cedula, iglesia_id: iglesiaId } });
+      if (existe) return 'Cedula ya existente';
+    }
+    
     const miembro = await this.miembroRepository.findOne({ where: { id: id } });
     if(!miembro) throw new NotFoundException('Miembro no encontrado');
     await this.miembroRepository.update(id, {...res, iglesia_id: iglesiaId});

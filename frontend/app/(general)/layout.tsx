@@ -3,7 +3,7 @@
 
 import Navbar from '../components/navbar';
 import { useEffect } from 'react';
-import {Toaster} from 'react-hot-toast';
+import {Toaster} from 'react-hot-toast'
 
 export default function DashboardLayout({
   children,
@@ -27,12 +27,15 @@ export default function DashboardLayout({
     <div className="bg-gray-50">
       <Navbar />
       <main className="mt-0">
-          <Toaster
+        <Toaster
           position='top-right'
           toastOptions={{
             duration: 3000,
           }}
-          />
+          containerStyle={{
+            top: 75,
+          }}
+        />
         {children}
       </main>
     </div>

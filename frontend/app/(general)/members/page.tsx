@@ -669,18 +669,11 @@ const ModalEditarMiembro = ({
               </div>
             </div>
 
-            <div className="mt-5 sm:mt-6 p-3 sm:p-4 bg-blue-50 border border-blue-100 rounded-lg">
-              <p className="text-xs sm:text-sm text-blue-700 flex items-start gap-2">
-                <span className="text-blue-500 mt-0.5">ℹ️</span>
-                <span>Los campos marcados con <span className="text-red-500">*</span> son obligatorios.</span>
-              </p>
-            </div>
-
             <div className="flex flex-col sm:flex-row gap-3 pt-6 mt-6 border-t border-gray-100">
               <button
                 type="button"
                 onClick={handleClose}
-                className="flex-1 px-4 py-3 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-all duration-200 border border-gray-200"
+                className="flex-1 px-4 mb-7 py-3 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-all duration-200 border border-gray-200"
                 disabled={isSubmitting}
               >
                 Cancelar
@@ -688,7 +681,7 @@ const ModalEditarMiembro = ({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className={`flex-1 px-4 py-3 text-sm font-medium text-white rounded-lg transition-all duration-200 flex items-center justify-center gap-2 ${isSubmitting ? 'bg-blue-600 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                className={`flex-1 mb-7 px-4 py-3 text-sm font-medium text-white rounded-lg transition-all duration-200 flex items-center justify-center gap-2 ${isSubmitting ? 'bg-blue-600 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
               >
                 {isSubmitting ? (
                   <>
@@ -1014,7 +1007,9 @@ export default function Members() {
   
   const handleCreate = async (data: any) => {
     try {
-      await createMiembro(data);
+      const res = await createMiembro(data);
+      console.log(res);
+      if(res === 'Cedula ya existente') return toast.error('Cedula ya existente');
       setShowCreateModal(false);
       resetForm();
       toast.success('Miembro creado exitosamente');
@@ -1024,37 +1019,34 @@ export default function Members() {
   };
 
   const handleEdit = (member: Member) => {
+    setSelectedMember(null)
     setSelectedMember(member)
     setShowEditModal(true)
   }
 
   // MODIFICADO: Función que solo envía campos que han cambiado
   const handleUpdate = async (updatedData: any) => {
-    if (!selectedMember) return
+    if (!selectedMember) return setSelectedMember(null);
 
     try {
       // Obtener el objeto original del miembro
       const originalMember = members.find(m => m.id === selectedMember.id);
       
-      if (!originalMember) return;
+      if (!originalMember) return setSelectedMember(null);
       
       // Obtener solo los campos que han cambiado
       const changedFields = getChangedFields(originalMember, updatedData);
-      
-      console.log('Campos originales:', originalMember);
-      console.log('Datos del formulario:', updatedData);
-      console.log('Campos cambiados (SOLO ESTOS SE ENVIARÁN):', changedFields);
-      
-      // Si no hay cambios, mostrar mensaje y cerrar modal
       if (Object.keys(changedFields).length === 0) {
-        toast.success('No se detectaron cambios');
+        toast.error('No se detectaron cambios');
         setShowEditModal(false);
         setSelectedMember(null);
         return;
       }
       
       // Enviar solo los campos cambiados
-      await updateMiembro(selectedMember.id, changedFields);
+      const res = await updateMiembro(selectedMember.id, changedFields);
+      if(res === 'Cedula ya existente') return toast.error('Cedula ya existente');
+
 
       setShowEditModal(false);
       setSelectedMember(null);
@@ -1111,10 +1103,19 @@ export default function Members() {
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-2">
             <div className="relative">
-              <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
-                <span className="text-white font-bold text-sm">
-                  {member.nombres.charAt(0)}{member.apellidos.charAt(0)}
+              <div className="h-14 w-14 rounded-full flex items-center justify-center shadow-lg overflow-hidden bg-gradient-to-br from-blue-500 to-blue-600">
+              {member.img ? (
+                <img
+                  src={member.img}
+                  alt={`${member.nombres} ${member.apellidos}`}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <span className="text-white font-bold text-lg">
+                  {member.nombres.charAt(0)}
+                  {member.apellidos.charAt(0)}
                 </span>
+              )}
               </div>
               <div className={`absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-white ${member.estado ? 'bg-green-500' : 'bg-red-500'}`} />
             </div>
@@ -1215,7 +1216,10 @@ export default function Members() {
     <>
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
         {/* Header Compacto y Elegante - FIXED */}
-        {!isMobile ? (
+        
+        {!isLoading && (
+          <>
+            {!isMobile ? (
           <>
             <div className="bg-white border-b border-gray-200 shadow-sm fixed top-16 left-0 right-0 z-1">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -1414,214 +1418,239 @@ export default function Members() {
             </div>
             <div className="pt-[236px]"></div>
           </>
-        ) : (
-          <>
-            <div className="bg-white border-b border-gray-200 shadow-sm">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                {/* Primera fila: Título y estadísticas */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                  <div>
-                    <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-                      Gestión de Miembros
-                    </h1>
-                    <p className="text-gray-600 text-sm mt-1">
-                      Administra los miembros de la congregación
-                    </p>
-                  </div>
+            ) : (
+              <>
+                <div className="bg-white border-b border-gray-200 shadow-sm">
+                  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                    {/* Primera fila: Título y estadísticas */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                      <div>
+                        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+                          Gestión de Miembros
+                        </h1>
+                        <p className="text-gray-600 text-sm mt-1">
+                          Administra los miembros de la congregación
+                        </p>
+                      </div>
 
-                  {/* Estadísticas compactas */}
-                  <div className="flex flex-wrap gap-3">
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-blue-500"></div>
-                      <span className="text-sm text-gray-700">
-                        <span className="font-semibold">{members.length}</span> Total
-                      </span>
-                    </div>
-                    
-                    {/* Mostrar estadísticas avanzadas solo para ADMIN o superior */}
-                    {permissions.canViewAdvancedStats && (
-                      <>
-                        <div className="flex items-center gap-2">
-                          <div className="h-2 w-2 rounded-full bg-red-500"></div>
-                          <span className="text-sm text-gray-700">
-                            <span className="font-semibold">{members.filter(m => m.estado === false).length}</span> Inactivos
-                          </span>
-                        </div>
-                        
+                      {/* Estadísticas compactas */}
+                      <div className="flex flex-wrap gap-3">
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-2 rounded-full bg-blue-500"></div>
                           <span className="text-sm text-gray-700">
-                            <span className="font-semibold">{members.filter(m => m.bautismoEstado === BautismoEstado.BAUTIZADO).length}</span> Bautizados
+                            <span className="font-semibold">{members.length}</span> Total
                           </span>
                         </div>
                         
-                        <div className="flex items-center gap-2">
-                          <div className="h-2 w-2 rounded-full bg-gray-500"></div>
-                          <span className="text-sm text-gray-700">
-                            <span className="font-semibold">{members.filter(m => m.bautismoEstado === BautismoEstado.NO_BAUTIZADO).length}</span> No bautizados
-                          </span>
-                        </div>
+                        {/* Mostrar estadísticas avanzadas solo para ADMIN o superior */}
+                        {permissions.canViewAdvancedStats && (
+                          <>
+                            <div className="flex items-center gap-2">
+                              <div className="h-2 w-2 rounded-full bg-red-500"></div>
+                              <span className="text-sm text-gray-700">
+                                <span className="font-semibold">{members.filter(m => m.estado === false).length}</span> Inactivos
+                              </span>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                              <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                              <span className="text-sm text-gray-700">
+                                <span className="font-semibold">{members.filter(m => m.bautismoEstado === BautismoEstado.BAUTIZADO).length}</span> Bautizados
+                              </span>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                              <div className="h-2 w-2 rounded-full bg-gray-500"></div>
+                              <span className="text-sm text-gray-700">
+                                <span className="font-semibold">{members.filter(m => m.bautismoEstado === BautismoEstado.NO_BAUTIZADO).length}</span> No bautizados
+                              </span>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                              <div className="h-2 w-2 rounded-full bg-purple-500"></div>
+                              <span className="text-sm text-gray-700">
+                                <span className="font-semibold">{members.filter(m => m.bautismoEstado === BautismoEstado.EN_DISCIPULADO).length}</span> En discipulado
+                              </span>
+                            </div>
+                          </>
+                        )}
                         
+                        {/* Para USER mostrar solo info básica */}
+                        {!permissions.canViewAdvancedStats && (
+                          <div className="flex items-center gap-2">
+                            <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                            <span className="text-sm text-gray-700">
+                              <span className="font-semibold">{members.filter(m => m.bautismoEstado === BautismoEstado.BAUTIZADO).length}</span> Bautizados
+                            </span>
+                          </div>
+                        )}
+                        
+                        {/* Género siempre visible para todos */}
                         <div className="flex items-center gap-2">
-                          <div className="h-2 w-2 rounded-full bg-purple-500"></div>
+                          <div className="h-2 w-2 rounded-full bg-pink-500"></div>
                           <span className="text-sm text-gray-700">
-                            <span className="font-semibold">{members.filter(m => m.bautismoEstado === BautismoEstado.EN_DISCIPULADO).length}</span> En discipulado
+                            <span className="font-semibold">{members.filter(m => m.genero === UserGene.FEMENINO).length}</span> Mujeres
                           </span>
                         </div>
-                      </>
-                    )}
-                    
-                    {/* Para USER mostrar solo info básica */}
-                    {!permissions.canViewAdvancedStats && (
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-blue-500"></div>
-                        <span className="text-sm text-gray-700">
-                          <span className="font-semibold">{members.filter(m => m.bautismoEstado === BautismoEstado.BAUTIZADO).length}</span> Bautizados
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full bg-sky-500"></div>
+                          <span className="text-sm text-gray-700">
+                            <span className="font-semibold">{members.filter(m => m.genero === UserGene.MASCULINO).length}</span> Hombres
+                          </span>
+                        </div>
                       </div>
-                    )}
-                    
-                    {/* Género siempre visible para todos */}
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-pink-500"></div>
-                      <span className="text-sm text-gray-700">
-                        <span className="font-semibold">{members.filter(m => m.genero === UserGene.FEMENINO).length}</span> Mujeres
-                      </span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-sky-500"></div>
-                      <span className="text-sm text-gray-700">
-                        <span className="font-semibold">{members.filter(m => m.genero === UserGene.MASCULINO).length}</span> Hombres
-                      </span>
-                    </div>
-                  </div>
-                </div>
 
-                {/* Segunda fila: Búsqueda, filtro y botón */}
-                <div className="flex flex-col lg:flex-row gap-4">
-                  {/* Búsqueda */}
-                  <div className="flex-1">
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
+                    {/* Segunda fila: Búsqueda, filtro y botón */}
+                    <div className="flex flex-col lg:flex-row gap-4">
+                      {/* Búsqueda */}
+                      <div className="flex-1">
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="Buscar miembros..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2.5 border text-gray-800 border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                          />
+                          {searchTerm && (
+                            <button
+                              onClick={() => setSearchTerm('')}
+                              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      <input
-                        type="text"
-                        placeholder="Buscar miembros..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 border text-gray-800 border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                      />
-                      {searchTerm && (
+
+                      {/* Filtro y botón lado a lado */}
+                      <div className="flex gap-3">
+                        <div className="relative min-w-[180px]">
+                          <select
+                            value={activeFilter}
+                            onChange={(e) => setActiveFilter(e.target.value as any)}
+                            className="w-full appearance-none pl-3 pr-8 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-600 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-pointer"
+                          >
+                            <option value="all">Todos los miembros</option>
+                            <option value="active">Activos</option>
+                            {/* Solo mostrar opción de inactivos para ADMIN o superior */}
+                            {permissions.canViewInactive && (
+                              <option value="inactive">Inactivos</option>
+                            )}
+                            <option value="bautizado">Bautizados</option>
+                            <option value="no_bautizado">No bautizados</option>
+                            <option value="en_discipulado">En discipulado</option>
+                            <option value="hombres">Hombres</option>
+                            <option value="mujeres">Mujeres</option>
+                          </select>
+                          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                            <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </div>
+                        </div>
+
+                        {/* Botón Nuevo - Responsive - Mostrar solo si tiene permiso */}
+                        {permissions.canCreate && (
+                          <button
+                            onClick={() => setShowCreateModal(true)}
+                            className="inline-flex items-center justify-center px-3 sm:px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors whitespace-nowrap"
+                          >
+                            <svg className="h-4 w-4 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                            <span className="hidden sm:inline">Nuevo</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Tercera fila: Información de estado */}
+                    <div className="mt-4 pt-4 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-600">
+                          <span className="font-semibold text-gray-900">{filteredMembers.length}</span> resultados
+                        </span>
+                        {activeFilter !== 'all' && (
+                          <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                            <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            {activeFilter === 'active' && 'Activos'}
+                            {activeFilter === 'inactive' && 'Inactivos'}
+                            {activeFilter === 'bautizado' && 'Bautizados'}
+                            {activeFilter === 'no_bautizado' && 'No bautizados'}
+                            {activeFilter === 'en_discipulado' && 'En discipulado'}
+                            {activeFilter === 'hombres' && 'Hombres'}
+                            {activeFilter === 'mujeres' && 'Mujeres'}
+                          </span>
+                        )}
+                        {searchTerm && (
+                          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                            "{searchTerm}"
+                          </span>
+                        )}
+                      </div>
+
+                      {activeFilter !== 'all' && (
                         <button
-                          onClick={() => setSearchTerm('')}
-                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                          onClick={() => setActiveFilter('all')}
+                          className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1 transition-colors"
                         >
-                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                           </svg>
+                          Quitar filtro
                         </button>
                       )}
                     </div>
                   </div>
-
-                  {/* Filtro y botón lado a lado */}
-                  <div className="flex gap-3">
-                    <div className="relative min-w-[180px]">
-                      <select
-                        value={activeFilter}
-                        onChange={(e) => setActiveFilter(e.target.value as any)}
-                        className="w-full appearance-none pl-3 pr-8 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-600 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-pointer"
-                      >
-                        <option value="all">Todos los miembros</option>
-                        <option value="active">Activos</option>
-                        {/* Solo mostrar opción de inactivos para ADMIN o superior */}
-                        {permissions.canViewInactive && (
-                          <option value="inactive">Inactivos</option>
-                        )}
-                        <option value="bautizado">Bautizados</option>
-                        <option value="no_bautizado">No bautizados</option>
-                        <option value="en_discipulado">En discipulado</option>
-                        <option value="hombres">Hombres</option>
-                        <option value="mujeres">Mujeres</option>
-                      </select>
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-                        <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </div>
-                    </div>
-
-                    {/* Botón Nuevo - Responsive - Mostrar solo si tiene permiso */}
-                    {permissions.canCreate && (
-                      <button
-                        onClick={() => setShowCreateModal(true)}
-                        className="inline-flex items-center justify-center px-3 sm:px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors whitespace-nowrap"
-                      >
-                        <svg className="h-4 w-4 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                        </svg>
-                        <span className="hidden sm:inline">Nuevo</span>
-                      </button>
-                    )}
-                  </div>
                 </div>
-
-                {/* Tercera fila: Información de estado */}
-                <div className="mt-4 pt-4 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600">
-                      <span className="font-semibold text-gray-900">{filteredMembers.length}</span> resultados
-                    </span>
-                    {activeFilter !== 'all' && (
-                      <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                        <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        {activeFilter === 'active' && 'Activos'}
-                        {activeFilter === 'inactive' && 'Inactivos'}
-                        {activeFilter === 'bautizado' && 'Bautizados'}
-                        {activeFilter === 'no_bautizado' && 'No bautizados'}
-                        {activeFilter === 'en_discipulado' && 'En discipulado'}
-                        {activeFilter === 'hombres' && 'Hombres'}
-                        {activeFilter === 'mujeres' && 'Mujeres'}
-                      </span>
-                    )}
-                    {searchTerm && (
-                      <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                        "{searchTerm}"
-                      </span>
-                    )}
-                  </div>
-
-                  {activeFilter !== 'all' && (
-                    <button
-                      onClick={() => setActiveFilter('all')}
-                      className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1 transition-colors"
-                    >
-                      <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                      Quitar filtro
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
+              </>
+            )}
           </>
         )}
+
 
         {/* Contenido principal */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-0 py-6">
           {/* Vista móvil (Cards) */}
           <div className="lg:hidden">
             {isLoading ? (
-              <div className="text-center py-8">
-                <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                <p className="mt-2 text-gray-600 text-sm">Cargando miembros...</p>
+              <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+                <div className="max-w-7xl mx-auto px-4 pt-6 pb-12">
+                  {/* Skeleton rápido */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8 md:mb-12">
+                    {[1, 2, 3, 4].map((i) => (
+                      <div key={i} className="bg-white rounded-xl border border-blue-100 p-5 md:p-6">
+                        <div className="animate-pulse">
+                          <div className="flex items-start justify-between mb-4 md:mb-5">
+                            <div className="p-3 rounded-xl bg-blue-50">
+                              <div className="w-6 h-6 md:w-7 md:h-7 bg-blue-200 rounded"></div>
+                            </div>
+                            <div className="text-right">
+                              <div className="h-5 w-20 bg-blue-100 rounded-full"></div>
+                            </div>
+                          </div>
+                          <div>
+                            <div className="h-4 w-24 bg-blue-100 rounded mb-2"></div>
+                            <div className="h-8 w-16 bg-blue-200 rounded"></div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
+
             ) : filteredMembers.length === 0 ? (
               <div className="bg-white rounded-xl p-6 shadow border border-gray-200 text-center">
                 <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full mb-3">
@@ -1737,11 +1766,21 @@ export default function Members() {
                             <td className="py-6 px-6">
                               <div className="flex items-center space-x-4">
                                 <div className="relative">
-                                  <div className="h-14 w-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg">
+                                  <div className="h-14 w-14 rounded-full flex items-center justify-center shadow-lg overflow-hidden bg-gradient-to-br from-blue-500 to-blue-600">
+                                  {member.img ? (
+                                    <img
+                                      src={member.img}
+                                      alt={`${member.nombres} ${member.apellidos}`}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : (
                                     <span className="text-white font-bold text-lg">
-                                      {member.nombres.charAt(0)}{member.apellidos.charAt(0)}
+                                      {member.nombres.charAt(0)}
+                                      {member.apellidos.charAt(0)}
                                     </span>
-                                  </div>
+                                  )}
+                                </div>
+
                                   <div className={`absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-[2px] border-white ${member.estado ? 'bg-green-500' : 'bg-red-500'}`} />
                                 </div>
                                 <div className="flex-1 min-w-0">
@@ -1992,7 +2031,7 @@ export default function Members() {
       {/* Modales */}
       <ModalEditarMiembro
         open={showEditModal}
-        onClose={() => setShowEditModal(false)}
+        onClose={() => {setShowEditModal(false);  setTimeout(() => setSelectedMember(null), 300); }}
         member={selectedMember}
         onSave={handleUpdate}
       />

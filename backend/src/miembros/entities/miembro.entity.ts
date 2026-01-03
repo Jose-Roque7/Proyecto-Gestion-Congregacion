@@ -21,7 +21,6 @@ export class Miembro {
     type: 'varchar', 
     length: 11, 
     nullable: true, 
-    unique: true 
   })
   cedula: string;
 

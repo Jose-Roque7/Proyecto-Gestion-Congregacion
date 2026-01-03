@@ -41,9 +41,6 @@ export class CreateMiembroDto {
 
   @IsString({ message: 'La imagen debe ser una URL válida' })
   @IsOptional()
-  @Matches(/^(https?:\/\/.*\.(?:png|jpg|jpeg|gif|webp|svg))?$/, {
-    message: 'La imagen debe ser una URL válida (png, jpg, jpeg, gif, webp, svg)'
-  })
   img?: string;
 
   @IsEnum(UserGene, { message: 'El género debe ser MASCULINO o FEMENINO' })
